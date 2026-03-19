@@ -1,10 +1,10 @@
 services:
   - type: web
     name: proposallock
-    runtime: bun
+    runtime: node
     plan: free
-    buildCommand: bun install
-    startCommand: bun run src/index.ts
+    buildCommand: curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bun install
+    startCommand: ~/.bun/bin/bun run src/index.ts
     envVars:
       - key: PORT
         value: 10000
