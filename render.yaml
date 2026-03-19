@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: proposallock
+    runtime: bun
+    plan: free
+    buildCommand: bun install
+    startCommand: bun run src/index.ts
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DB_PATH
+        value: /tmp/proposallock.db
+      - key: NODE_ENV
+        value: production
+      - key: LEMONSQUEEZY_API_KEY
+        sync: false
+      - key: LEMONSQUEEZY_STORE_ID
+        sync: false
+      - key: LEMONSQUEEZY_PRODUCT_ID
+        sync: false
+      - key: LEMONSQUEEZY_WEBHOOK_SECRET
+        sync: false
+      - key: LS_CHECKOUT_URL
+        sync: false
