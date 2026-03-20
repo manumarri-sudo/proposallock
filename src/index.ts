@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { createProposal, getProposal, markPaid, markPaidByVariant } from "./db.js";
-import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy.js";
+import { createProposal, getProposal, markPaid, markPaidByVariant } from "./db.ts";
+import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy.ts";
 
 const app = new Hono();
 
