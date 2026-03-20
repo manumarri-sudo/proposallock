@@ -3,8 +3,8 @@ services:
     name: proposallock
     runtime: node
     plan: free
-    buildCommand: curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bun install
-    startCommand: ~/.bun/bin/bun run src/index.ts
+    buildCommand: npm install && npx tsup src/index.ts --format esm --outDir dist
+    startCommand: node dist/index.mjs
     envVars:
       - key: PORT
         value: 10000

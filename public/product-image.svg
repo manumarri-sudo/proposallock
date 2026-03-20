@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200" fill="none">
+  <rect width="1600" height="1200" fill="#09090B"/>
+
+  <!-- Subtle grid pattern -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a1a2e" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="1200" fill="url(#grid)"/>
+
+  <!-- Lock icon centered -->
+  <rect x="650" y="340" width="300" height="240" rx="36" fill="#6366F1"/>
+  <path d="M716 340V260C716 208.14 758.14 166 810 166H790C841.86 166 884 208.14 884 260V340"
+        stroke="#818CF8" stroke-width="48" stroke-linecap="round" fill="none"/>
+  <rect x="740" y="400" width="96" height="120" rx="12" fill="#09090B"/>
+  <rect x="758" y="424" width="54" height="6" rx="3" fill="#6366F1"/>
+  <rect x="758" y="440" width="42" height="6" rx="3" fill="#6366F1"/>
+  <rect x="758" y="456" width="48" height="6" rx="3" fill="#6366F1"/>
+  <circle cx="920" cy="556" r="48" fill="#22C55E"/>
+  <path d="M893 556L909 572L947 534" stroke="white" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Title text -->
+  <text x="800" y="700" text-anchor="middle" fill="white" font-family="-apple-system, BlinkMacSystemFont, Inter, sans-serif" font-size="64" font-weight="700">ProposalLock</text>
+
+  <!-- Subtitle -->
+  <text x="800" y="760" text-anchor="middle" fill="#9CA3AF" font-family="-apple-system, BlinkMacSystemFont, Inter, sans-serif" font-size="28">Your files unlock the moment they pay.</text>
+
+  <!-- Features row -->
+  <text x="460" y="860" text-anchor="middle" fill="#6366F1" font-family="-apple-system, BlinkMacSystemFont, Inter, sans-serif" font-size="22">&#x2713; Payment-gated files</text>
+  <text x="800" y="860" text-anchor="middle" fill="#6366F1" font-family="-apple-system, BlinkMacSystemFont, Inter, sans-serif" font-size="22">&#x2713; One-time $29</text>
+  <text x="1140" y="860" text-anchor="middle" fill="#6366F1" font-family="-apple-system, BlinkMacSystemFont, Inter, sans-serif" font-size="22">&#x2713; No subscription</text>
+</svg>
