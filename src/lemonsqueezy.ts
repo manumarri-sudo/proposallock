@@ -25,8 +25,24 @@ export async function createCheckoutLink(params: {
     return null;
   }
 
-  // Get the first variant of the master product to build a checkout
-  const variantId = LS_PRODUCT_ID; // In real setup, this would be the variant ID
+  // Look up the first variant of the product (variant ID != product ID)
+  let variantId = process.env.LEMONSQUEEZY_VARIANT_ID || "";
+  if (!variantId) {
+    try {
+      const varRes = await fetch(`${LS_BASE_URL}/variants?filter[product_id]=${LS_PRODUCT_ID}`, { headers });
+      const varData = await varRes.json() as any;
+      variantId = varData?.data?.[0]?.id || "";
+      if (variantId) {
+        console.log(`Resolved variant ID: ${variantId} for product ${LS_PRODUCT_ID}`);
+      } else {
+        console.error("No variants found for product", LS_PRODUCT_ID, JSON.stringify(varData));
+        return null;
+      }
+    } catch (e) {
+      console.error("Failed to look up variant:", e);
+      return null;
+    }
+  }
 
   try {
     const res = await fetch(`${LS_BASE_URL}/checkouts`, {
