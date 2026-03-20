@@ -254,65 +254,51 @@ function landingPage(): string {
     <h1 class="text-4xl sm:text-5xl font-bold leading-[1.15] tracking-tight mb-6 text-warm-950">
       Your files unlock<br />the moment they pay.
     </h1>
-    <p class="text-lg text-warm-500 mb-10 max-w-md mx-auto leading-relaxed">
+    <p class="text-lg text-warm-600 mb-10 max-w-md mx-auto leading-relaxed">
       Create a proposal link. Attach your deliverables. Get paid before they download.
     </p>
     <a href="#create" class="inline-flex items-center gap-2 accent-gradient hover:opacity-90 text-white font-semibold px-8 py-3.5 rounded-xl transition text-base shadow-lg shadow-accent-500/20">
       Create Your First Proposal Free
       <i data-lucide="arrow-right" class="w-4 h-4"></i>
     </a>
-    <p class="text-sm text-warm-400 mt-5">No account needed. Works in 30 seconds.</p>
+    <p class="text-sm text-warm-500 mt-5">No account needed. Works in 30 seconds.</p>
   </section>
 
   <!-- Pain Points -->
   <section class="max-w-2xl mx-auto px-6 py-16">
-    <h2 class="text-sm font-semibold text-warm-400 uppercase tracking-widest mb-8 text-center">Sound familiar?</h2>
+    <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Sound familiar?</h2>
     <div class="space-y-4">
-      <div class="flex gap-4 bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
-        <div class="w-10 h-10 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
-          <i data-lucide="message-circle-warning" class="w-5 h-5 text-amber-600"></i>
-        </div>
-        <p class="text-warm-700 leading-relaxed">"Sent files. Client said will pay Friday. That was 3 weeks ago."<br /><span class="text-xs text-warm-400">-- r/freelance, 2024 (100+ upvotes)</span></p>
+      <div class="border-l-2 border-accent-300 pl-5 py-2">
+        <p class="text-warm-800 leading-relaxed">"Sent files. Client said will pay Friday. That was 3 weeks ago."</p>
+        <p class="text-sm text-warm-500 mt-1">-- r/freelance, 2024 (100+ upvotes)</p>
       </div>
-      <div class="flex gap-4 bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
-        <div class="w-10 h-10 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
-          <i data-lucide="clock" class="w-5 h-5 text-amber-600"></i>
-        </div>
-        <p class="text-warm-700 leading-relaxed">2+ hours chasing invoices every week instead of doing client work.</p>
+      <div class="border-l-2 border-accent-300 pl-5 py-2">
+        <p class="text-warm-800 leading-relaxed">2+ hours chasing invoices every week instead of doing client work.</p>
       </div>
-      <div class="flex gap-4 bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
-        <div class="w-10 h-10 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
-          <i data-lucide="receipt" class="w-5 h-5 text-amber-600"></i>
-        </div>
-        <p class="text-warm-700 leading-relaxed">HoneyBook charges $66/month. You just need a pay-to-unlock link.</p>
+      <div class="border-l-2 border-accent-300 pl-5 py-2">
+        <p class="text-warm-800 leading-relaxed">HoneyBook charges $66/month. You just need a pay-to-unlock link.</p>
       </div>
     </div>
   </section>
 
   <!-- How It Works -->
   <section class="max-w-2xl mx-auto px-6 py-16">
-    <h2 class="text-sm font-semibold text-warm-400 uppercase tracking-widest mb-10 text-center">How it works</h2>
+    <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-10 text-center">How it works</h2>
     <div class="grid sm:grid-cols-3 gap-8">
       <div class="text-center">
-        <div class="w-12 h-12 bg-accent-50 border border-accent-200 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <i data-lucide="link" class="w-5 h-5 text-accent-600"></i>
-        </div>
+        <p class="text-2xl font-bold text-accent-500 mb-2">1</p>
         <p class="font-medium text-warm-800 mb-1 text-sm">Paste your file URL</p>
-        <p class="text-warm-400 text-sm">Set a price for access</p>
+        <p class="text-warm-600 text-sm">Set a price for access</p>
       </div>
       <div class="text-center">
-        <div class="w-12 h-12 bg-accent-50 border border-accent-200 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <i data-lucide="send" class="w-5 h-5 text-accent-600"></i>
-        </div>
+        <p class="text-2xl font-bold text-accent-500 mb-2">2</p>
         <p class="font-medium text-warm-800 mb-1 text-sm">Send the link to your client</p>
-        <p class="text-warm-400 text-sm">They see a clean proposal page</p>
+        <p class="text-warm-600 text-sm">They see a clean proposal page</p>
       </div>
       <div class="text-center">
-        <div class="w-12 h-12 bg-accent-50 border border-accent-200 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <i data-lucide="unlock" class="w-5 h-5 text-accent-600"></i>
-        </div>
+        <p class="text-2xl font-bold text-accent-500 mb-2">3</p>
         <p class="font-medium text-warm-800 mb-1 text-sm">Files unlock on payment</p>
-        <p class="text-warm-400 text-sm">Instant, automatic access</p>
+        <p class="text-warm-600 text-sm">Instant, automatic access</p>
       </div>
     </div>
   </section>
@@ -321,7 +307,7 @@ function landingPage(): string {
   <section id="create" class="max-w-2xl mx-auto px-6 py-16">
     <div class="bg-white border border-warm-200 rounded-2xl p-8 shadow-sm">
       <h2 class="text-xl font-semibold text-warm-900 mb-1">Create a proposal</h2>
-      <p class="text-sm text-warm-400 mb-8">Free to try. Sell up to $29 worth of work, then unlock unlimited with ProposalLock.</p>
+      <p class="text-sm text-warm-500 mb-8">Free to try. Sell up to $29 worth of work, then unlock unlimited with ProposalLock.</p>
 
       <form id="proposalForm" class="space-y-5">
         <div>
@@ -335,14 +321,14 @@ function landingPage(): string {
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-warm-700 mb-1.5">Your file URL <span class="text-warm-400 font-normal">(Google Drive or Dropbox shareable link)</span></label>
+          <label class="block text-sm font-medium text-warm-700 mb-1.5">Your file URL <span class="text-warm-500 font-normal">(Google Drive or Dropbox shareable link)</span></label>
           <input type="url" name="file_url" required placeholder="https://drive.google.com/file/d/..."
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
         <div>
           <label class="block text-sm font-medium text-warm-700 mb-1.5">Price (USD)</label>
           <div class="relative">
-            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-warm-400 font-medium">$</span>
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-warm-500 font-medium">$</span>
             <input type="number" name="price" required min="1" step="0.01" placeholder="500"
               class="w-full bg-warm-50 border border-warm-200 rounded-xl pl-8 pr-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
           </div>
@@ -375,10 +361,10 @@ function landingPage(): string {
 
   <!-- Pricing -->
   <section class="max-w-2xl mx-auto px-6 py-16">
-    <h2 class="text-sm font-semibold text-warm-400 uppercase tracking-widest mb-8 text-center">Simple pricing</h2>
+    <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Simple pricing</h2>
     <div class="bg-white border border-warm-200 rounded-2xl p-8 max-w-sm mx-auto text-center shadow-sm">
       <div class="text-5xl font-bold text-warm-950 mb-1 tracking-tight">$29</div>
-      <div class="text-warm-400 text-sm mb-8">one-time -- no subscription -- lifetime access</div>
+      <div class="text-warm-500 text-sm mb-8">one-time -- no subscription -- lifetime access</div>
       <ul class="text-left space-y-3 text-warm-700 text-sm mb-8">
         <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0"></i> Unlimited proposals</li>
         <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0"></i> Payment-gated file delivery</li>
@@ -390,13 +376,13 @@ function landingPage(): string {
         class="block w-full accent-gradient hover:opacity-90 text-white font-semibold py-3.5 rounded-xl transition shadow-lg shadow-accent-500/20">
         Get ProposalLock -- $29
       </a>
-      <p class="text-xs text-warm-400 mt-4">vs HoneyBook at $66/month = $792/year</p>
+      <p class="text-xs text-warm-500 mt-4">vs HoneyBook at $66/month = $792/year</p>
     </div>
   </section>
 
   <!-- FAQ -->
   <section class="max-w-2xl mx-auto px-6 py-16">
-    <h2 class="text-sm font-semibold text-warm-400 uppercase tracking-widest mb-8 text-center">Frequently asked questions</h2>
+    <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Frequently asked questions</h2>
     <div class="space-y-6">
       <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
         <p class="font-medium text-warm-800 mb-2">Does this work with Google Drive or Dropbox?</p>
@@ -425,7 +411,7 @@ function landingPage(): string {
       </div>
       <span class="font-semibold text-warm-700 text-sm">ProposalLock</span>
     </div>
-    <p class="text-warm-400 text-sm">&copy; 2026 ProposalLock &middot; <a href="mailto:hello@proposallock.io" class="hover:text-accent-600 transition">Contact</a></p>
+    <p class="text-warm-500 text-sm">&copy; 2026 ProposalLock &middot; <a href="mailto:hello@proposallock.io" class="hover:text-accent-600 transition">Contact</a></p>
   </footer>
 
   <script>
@@ -517,17 +503,17 @@ function proposalPage(id: string): string {
       <div class="w-6 h-6 accent-gradient rounded-md flex items-center justify-center">
         <i data-lucide="lock" class="w-3 h-3 text-white"></i>
       </div>
-      <span class="text-xs text-warm-400 tracking-widest uppercase font-semibold">Secured by ProposalLock</span>
+      <span class="text-xs text-warm-500 tracking-widest uppercase font-semibold">Secured by ProposalLock</span>
     </div>
 
-    <div id="loading" class="text-center text-warm-400 py-12 flex items-center justify-center gap-2">
+    <div id="loading" class="text-center text-warm-500 py-12 flex items-center justify-center gap-2">
       <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
       Loading proposal...
     </div>
 
     <div id="content" class="hidden">
       <div class="bg-white border border-warm-200 rounded-2xl p-6 mb-4 shadow-sm">
-        <p class="text-xs text-warm-400 uppercase tracking-wider mb-1 font-medium">Project</p>
+        <p class="text-xs text-warm-500 uppercase tracking-wider mb-1 font-medium">Project</p>
         <h1 id="title" class="text-2xl font-bold text-warm-950 mb-4"></h1>
         <div class="flex items-center gap-2 text-warm-500 text-sm">
           <i data-lucide="user" class="w-4 h-4"></i>
@@ -543,19 +529,19 @@ function proposalPage(id: string): string {
             <i data-lucide="lock" class="w-6 h-6 text-amber-600"></i>
           </div>
           <p class="text-warm-800 font-semibold mb-1">Files locked until payment</p>
-          <p class="text-warm-400 text-sm mb-5">Pay once to access all deliverables for this project.</p>
+          <p class="text-warm-500 text-sm mb-5">Pay once to access all deliverables for this project.</p>
           <div class="text-3xl font-bold text-warm-950 mb-6 tracking-tight" id="price"></div>
           <a id="checkoutBtn" href="#" target="_blank"
             class="flex items-center justify-center gap-2 w-full accent-gradient hover:opacity-90 text-white font-semibold py-3.5 rounded-xl transition text-center shadow-lg shadow-accent-500/20">
             <i data-lucide="credit-card" class="w-4 h-4"></i>
             Pay to Unlock Files
           </a>
-          <p class="text-xs text-warm-400 mt-4 flex items-center justify-center gap-1">
+          <p class="text-xs text-warm-500 mt-4 flex items-center justify-center gap-1">
             <i data-lucide="shield-check" class="w-3 h-3"></i>
             Secure payment via LemonSqueezy -- Files unlock instantly
           </p>
         </div>
-        <p id="pollingStatus" class="text-center text-xs text-warm-400 flex items-center justify-center gap-1.5">
+        <p id="pollingStatus" class="text-center text-xs text-warm-500 flex items-center justify-center gap-1.5">
           <i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i>
           Waiting for payment confirmation...
         </p>
@@ -568,7 +554,7 @@ function proposalPage(id: string): string {
             <i data-lucide="check-circle-2" class="w-6 h-6 text-green-600"></i>
           </div>
           <p class="text-green-700 font-semibold text-lg mb-1">Payment confirmed!</p>
-          <p class="text-warm-400 text-sm mb-6">Your files are unlocked and ready to download.</p>
+          <p class="text-warm-500 text-sm mb-6">Your files are unlocked and ready to download.</p>
           <a id="fileLink" href="#" target="_blank"
             class="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3.5 rounded-xl transition shadow-lg shadow-green-500/20">
             <i data-lucide="download" class="w-4 h-4"></i>
@@ -683,7 +669,7 @@ function successPage(id: string): string {
     <h1 class="text-3xl font-bold text-warm-950 mb-3 tracking-tight">Payment confirmed!</h1>
     <p class="text-warm-500 mb-8">Your files are now unlocked and ready to download.</p>
 
-    <div id="loading" class="text-warm-400 text-sm flex items-center justify-center gap-2">
+    <div id="loading" class="text-warm-500 text-sm flex items-center justify-center gap-2">
       <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
       Loading your files...
     </div>
@@ -696,7 +682,7 @@ function successPage(id: string): string {
           Download Files
         </a>
       </div>
-      <p class="text-xs text-warm-400 flex items-center justify-center gap-1">
+      <p class="text-xs text-warm-500 flex items-center justify-center gap-1">
         <i data-lucide="bookmark" class="w-3 h-3"></i>
         Bookmark this page -- your link stays active.
       </p>
