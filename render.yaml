@@ -3,8 +3,8 @@ services:
     name: proposallock
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: node dist/index.mjs
+    buildCommand: npm install
+    startCommand: node src/index.ts
     envVars:
       - key: PORT
         value: 10000

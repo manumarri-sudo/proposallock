@@ -1,10 +1,8 @@
 import { Hono } from "hono";
-// Use platform-appropriate static file serving
-const serveStatic = typeof globalThis.Bun !== "undefined"
-  ? (await import("hono/bun")).serveStatic
-  : (await import("@hono/node-server/serve-static")).serveStatic;
-import { createProposal, getProposal, markPaid, markPaidByVariant } from "./db";
-import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy";
+import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { createProposal, getProposal, markPaid, markPaidByVariant } from "./db.js";
+import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy.js";
 
 const app = new Hono();
 
@@ -549,14 +547,5 @@ function successPage(id: string): string {
 const port = parseInt(process.env.PORT || "3000");
 console.log(`ProposalLock running on http://localhost:${port}`);
 
-// Bun export (used when running with bun)
-export default {
-  port,
-  fetch: app.fetch,
-};
-
-// Node.js fallback (used on Render/Railway)
-if (typeof globalThis.Bun === "undefined") {
-  const { serve } = await import("@hono/node-server");
-  serve({ fetch: app.fetch, port });
-}
+// Start server
+serve({ fetch: app.fetch, port });

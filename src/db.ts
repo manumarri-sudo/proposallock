@@ -1,10 +1,4 @@
-// Use bun:sqlite if available, otherwise better-sqlite3
-let Database: any;
-try {
-  Database = require("bun:sqlite").Database;
-} catch {
-  Database = require("better-sqlite3");
-}
+import Database from "better-sqlite3";
 
 const DB_PATH = process.env.DB_PATH || "./proposallock.db";
 
