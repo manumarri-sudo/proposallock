@@ -111,7 +111,10 @@ export async function verifyWebhookSignature(
   signature: string
 ): Promise<boolean> {
   const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "";
-  if (!secret) return true; // Skip verification in dev
+  if (!secret) {
+    console.error("LEMONSQUEEZY_WEBHOOK_SECRET not configured -- rejecting webhook");
+    return false;
+  }
 
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -126,5 +129,13 @@ export async function verifyWebhookSignature(
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  return computed === signature;
+  // Timing-safe comparison to prevent signature brute-force
+  if (computed.length !== signature.length) return false;
+  const a = encoder.encode(computed);
+  const b2 = encoder.encode(signature);
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a[i] ^ b2[i];
+  }
+  return result === 0;
 }
