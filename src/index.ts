@@ -541,10 +541,10 @@ function loginPage(): string {
   <title>Log in -- ProposalLock</title>
   ${tailwindConfig}
 </head>
-<body class="bg-warm-50 text-warm-900 min-h-screen flex items-center justify-center px-6 antialiased">
+<body class="bg-warm-50 text-warm-900 min-h-screen flex items-center justify-center px-4 sm:px-6 antialiased">
   <div class="w-full max-w-sm">
     <div class="text-center mb-8">
-      <div class="w-12 h-12 accent-gradient rounded-xl flex items-center justify-center mx-auto mb-4">
+      <div class="w-12 h-12 accent-gradient rounded-xl flex items-center justify-center mx-auto mb-4" aria-hidden="true">
         <i data-lucide="lock" class="w-6 h-6 text-white"></i>
       </div>
       <h1 class="text-2xl font-bold text-warm-950 tracking-tight">Log in to ProposalLock</h1>
@@ -554,20 +554,20 @@ function loginPage(): string {
     <div class="bg-white border border-warm-200 rounded-2xl p-6 shadow-sm">
       <form id="loginForm" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-warm-700 mb-1.5">Email address</label>
-          <input type="email" name="email" required placeholder="you@example.com"
+          <label for="login-email" class="block text-sm font-medium text-warm-700 mb-1.5">Email address</label>
+          <input type="email" id="login-email" name="email" required placeholder="you@example.com"
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
         <button type="submit" id="loginBtn"
           class="w-full accent-gradient hover:opacity-90 disabled:opacity-50 text-white font-semibold px-6 py-3.5 rounded-xl transition shadow-lg shadow-accent-500/20 flex items-center justify-center gap-2">
-          <i data-lucide="mail" class="w-4 h-4"></i>
+          <i data-lucide="mail" class="w-4 h-4" aria-hidden="true"></i>
           Send Magic Link
         </button>
       </form>
-      <div id="loginSuccess" class="hidden mt-4 bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+      <div id="loginSuccess" class="hidden mt-4 bg-green-50 border border-green-200 rounded-xl p-4 text-center" role="status" aria-live="polite">
         <p class="text-green-700 text-sm font-medium">Check your email for a login link.</p>
       </div>
-      <div id="loginError" class="hidden mt-4 text-red-500 text-sm text-center"></div>
+      <div id="loginError" class="hidden mt-4 text-red-500 text-sm text-center" role="alert" aria-live="assertive"></div>
     </div>
 
     <p class="text-center text-warm-500 text-xs mt-6">
@@ -867,7 +867,7 @@ function landingPage(loggedIn = false): string {
         <div id="formError" class="hidden text-red-500 text-sm text-center" role="alert" aria-live="assertive"></div>
       </form>
 
-      <div id="proposalResult" class="hidden mt-6 bg-green-50 border border-green-200 rounded-xl p-5">
+      <div id="proposalResult" class="hidden mt-6 bg-green-50 border border-green-200 rounded-xl p-5" role="status" aria-live="polite">
         <div class="flex items-center gap-2 mb-2">
           <i data-lucide="check-circle-2" class="w-5 h-5 text-green-600"></i>
           <p class="text-green-700 font-semibold">Proposal created!</p>
@@ -890,21 +890,21 @@ function landingPage(loggedIn = false): string {
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Security you can trust</h2>
     <div class="grid sm:grid-cols-3 gap-6">
       <div class="bg-white border border-warm-200 rounded-xl p-5 text-center shadow-sm">
-        <div class="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center mx-auto mb-3">
+        <div class="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center mx-auto mb-3" aria-hidden="true">
           <i data-lucide="shield-check" class="w-5 h-5 text-accent-600"></i>
         </div>
         <p class="font-medium text-warm-800 text-sm mb-1">HMAC-verified webhooks</p>
         <p class="text-warm-500 text-xs">Every payment is cryptographically verified before unlocking files.</p>
       </div>
       <div class="bg-white border border-warm-200 rounded-xl p-5 text-center shadow-sm">
-        <div class="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center mx-auto mb-3">
+        <div class="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center mx-auto mb-3" aria-hidden="true">
           <i data-lucide="eye-off" class="w-5 h-5 text-accent-600"></i>
         </div>
         <p class="font-medium text-warm-800 text-sm mb-1">Hidden until paid</p>
         <p class="text-warm-500 text-xs">File URLs are never exposed in the browser, API, or source code until payment clears.</p>
       </div>
       <div class="bg-white border border-warm-200 rounded-xl p-5 text-center shadow-sm">
-        <div class="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center mx-auto mb-3">
+        <div class="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center mx-auto mb-3" aria-hidden="true">
           <i data-lucide="lock" class="w-5 h-5 text-accent-600"></i>
         </div>
         <p class="font-medium text-warm-800 text-sm mb-1">Flexible delivery</p>
@@ -920,11 +920,11 @@ function landingPage(loggedIn = false): string {
       <div class="text-5xl font-bold text-warm-950 mb-1 tracking-tight">$29</div>
       <div class="text-warm-500 text-sm mb-8">one-time -- no subscription -- lifetime access</div>
       <ul class="text-left space-y-3 text-warm-700 text-sm mb-8">
-        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0"></i> Unlimited proposals</li>
-        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0"></i> Payment-gated file delivery</li>
-        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0"></i> Auto-unlock on payment</li>
-        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0"></i> Works with Google Drive & Dropbox</li>
-        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0"></i> 30-day money-back guarantee</li>
+        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0" aria-hidden="true"></i> Unlimited proposals</li>
+        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0" aria-hidden="true"></i> Payment-gated file delivery</li>
+        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0" aria-hidden="true"></i> Auto-unlock on payment</li>
+        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0" aria-hidden="true"></i> Works with Google Drive & Dropbox</li>
+        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0" aria-hidden="true"></i> 30-day money-back guarantee</li>
       </ul>
       <a href="${process.env.LS_CHECKOUT_URL || "#create"}"
         class="block w-full accent-gradient hover:opacity-90 text-white font-semibold py-3.5 rounded-xl transition shadow-lg shadow-accent-500/20">
@@ -978,9 +978,11 @@ function landingPage(loggedIn = false): string {
       document.getElementById('modeUrl').classList.toggle('bg-white', mode === 'url');
       document.getElementById('modeUrl').classList.toggle('text-accent-600', mode === 'url');
       document.getElementById('modeUrl').classList.toggle('text-warm-500', mode !== 'url');
+      document.getElementById('modeUrl').setAttribute('aria-pressed', mode === 'url');
       document.getElementById('modeUpload').classList.toggle('bg-white', mode === 'upload');
       document.getElementById('modeUpload').classList.toggle('text-accent-600', mode === 'upload');
       document.getElementById('modeUpload').classList.toggle('text-warm-500', mode !== 'upload');
+      document.getElementById('modeUpload').setAttribute('aria-pressed', mode === 'upload');
       // Toggle required on URL input
       const urlField = document.querySelector('#urlInput input');
       urlField.required = (mode === 'url');
@@ -1094,26 +1096,26 @@ function proposalPage(id: string): string {
   <title>ProposalLock -- Proposal</title>
   ${tailwindConfig}
 </head>
-<body class="bg-warm-50 text-warm-900 min-h-screen flex items-start justify-center pt-12 px-6 antialiased">
+<body class="bg-warm-50 text-warm-900 min-h-screen flex items-start justify-center pt-8 sm:pt-12 px-4 sm:px-6 antialiased">
   <div class="w-full max-w-md">
     <div class="text-center mb-8 flex items-center justify-center gap-2">
-      <div class="w-6 h-6 accent-gradient rounded-md flex items-center justify-center">
+      <div class="w-6 h-6 accent-gradient rounded-md flex items-center justify-center" aria-hidden="true">
         <i data-lucide="lock" class="w-3 h-3 text-white"></i>
       </div>
       <a href="https://proposallock.onrender.com/?ref=proposal" class="text-xs text-warm-500 tracking-widest uppercase font-semibold hover:text-accent-600 transition">Powered by ProposalLock</a>
     </div>
 
-    <div id="loading" class="text-center text-warm-500 py-12 flex items-center justify-center gap-2">
-      <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+    <div id="loading" class="text-center text-warm-500 py-12 flex items-center justify-center gap-2" role="status" aria-live="polite">
+      <i data-lucide="loader-2" class="w-4 h-4 animate-spin" aria-hidden="true"></i>
       Loading proposal...
     </div>
 
     <div id="content" class="hidden">
-      <div class="bg-white border border-warm-200 rounded-2xl p-6 mb-4 shadow-sm">
+      <div class="bg-white border border-warm-200 rounded-2xl p-5 sm:p-6 mb-4 shadow-sm">
         <p class="text-xs text-warm-500 uppercase tracking-wider mb-1 font-medium">Project</p>
-        <h1 id="title" class="text-2xl font-bold text-warm-950 mb-4"></h1>
+        <h1 id="title" class="text-xl sm:text-2xl font-bold text-warm-950 mb-4"></h1>
         <div class="flex items-center gap-2 text-warm-500 text-sm">
-          <i data-lucide="user" class="w-4 h-4"></i>
+          <i data-lucide="user" class="w-4 h-4" aria-hidden="true"></i>
           <span>Prepared for</span>
           <span id="clientName" class="text-warm-800 font-medium"></span>
         </div>
@@ -1121,8 +1123,8 @@ function proposalPage(id: string): string {
 
       <!-- Locked state -->
       <div id="lockedState" class="hidden">
-        <div class="bg-white border border-amber-200 rounded-2xl p-6 mb-4 text-center shadow-sm">
-          <div class="w-14 h-14 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div class="bg-white border border-amber-200 rounded-2xl p-5 sm:p-6 mb-4 text-center shadow-sm">
+          <div class="w-14 h-14 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-center mx-auto mb-4" aria-hidden="true">
             <i data-lucide="lock" class="w-6 h-6 text-amber-600"></i>
           </div>
           <p class="text-warm-800 font-semibold mb-1">Files locked until payment</p>
@@ -1130,38 +1132,38 @@ function proposalPage(id: string): string {
           <div class="text-3xl font-bold text-warm-950 mb-6 tracking-tight" id="price"></div>
           <a id="checkoutBtn" href="#" target="_blank"
             class="flex items-center justify-center gap-2 w-full accent-gradient hover:opacity-90 text-white font-semibold py-3.5 rounded-xl transition text-center shadow-lg shadow-accent-500/20">
-            <i data-lucide="credit-card" class="w-4 h-4"></i>
+            <i data-lucide="credit-card" class="w-4 h-4" aria-hidden="true"></i>
             Pay to Unlock Files
           </a>
           <p class="text-xs text-warm-500 mt-4 flex items-center justify-center gap-1">
-            <i data-lucide="shield-check" class="w-3 h-3"></i>
+            <i data-lucide="shield-check" class="w-3 h-3" aria-hidden="true"></i>
             Secure payment via LemonSqueezy -- Files unlock instantly
           </p>
         </div>
-        <p id="pollingStatus" class="text-center text-xs text-warm-500 flex items-center justify-center gap-1.5">
-          <i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i>
+        <p id="pollingStatus" class="text-center text-xs text-warm-500 flex items-center justify-center gap-1.5" role="status" aria-live="polite">
+          <i data-lucide="loader-2" class="w-3 h-3 animate-spin" aria-hidden="true"></i>
           Waiting for payment confirmation...
         </p>
       </div>
 
       <!-- Paid/unlocked state -->
       <div id="unlockedState" class="hidden">
-        <div class="bg-white border border-green-200 rounded-2xl p-6 text-center shadow-sm">
-          <div class="w-14 h-14 bg-green-50 border border-green-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div class="bg-white border border-green-200 rounded-2xl p-5 sm:p-6 text-center shadow-sm">
+          <div class="w-14 h-14 bg-green-50 border border-green-200 rounded-2xl flex items-center justify-center mx-auto mb-4" aria-hidden="true">
             <i data-lucide="check-circle-2" class="w-6 h-6 text-green-600"></i>
           </div>
           <p class="text-green-700 font-semibold text-lg mb-1">Payment confirmed!</p>
           <p class="text-warm-500 text-sm mb-6">Your files are unlocked and ready to download.</p>
           <a id="fileLink" href="#" target="_blank"
             class="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3.5 rounded-xl transition shadow-lg shadow-green-500/20">
-            <i data-lucide="download" class="w-4 h-4"></i>
+            <i data-lucide="download" class="w-4 h-4" aria-hidden="true"></i>
             Download Files
           </a>
         </div>
       </div>
     </div>
 
-    <div id="error" class="hidden text-center text-red-500 py-12">Proposal not found.</div>
+    <div id="error" class="hidden text-center text-red-500 py-12" role="alert">Proposal not found.</div>
   </div>
 
   <p class="text-center mt-8 mb-4">
@@ -1246,33 +1248,33 @@ function successPage(id: string): string {
   <title>ProposalLock -- Payment Confirmed</title>
   ${tailwindConfig}
 </head>
-<body class="bg-warm-50 text-warm-900 min-h-screen flex items-center justify-center px-6 antialiased">
+<body class="bg-warm-50 text-warm-900 min-h-screen flex items-center justify-center px-4 sm:px-6 antialiased">
   <div class="w-full max-w-md text-center">
-    <div class="w-16 h-16 bg-green-50 border border-green-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+    <div class="w-16 h-16 bg-green-50 border border-green-200 rounded-2xl flex items-center justify-center mx-auto mb-6" aria-hidden="true">
       <i data-lucide="party-popper" class="w-8 h-8 text-green-600"></i>
     </div>
-    <h1 class="text-3xl font-bold text-warm-950 mb-3 tracking-tight">Payment confirmed!</h1>
+    <h1 class="text-2xl sm:text-3xl font-bold text-warm-950 mb-3 tracking-tight">Payment confirmed!</h1>
     <p class="text-warm-500 mb-8">Your files are now unlocked and ready to download.</p>
 
-    <div id="loading" class="text-warm-500 text-sm flex items-center justify-center gap-2">
-      <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+    <div id="loading" class="text-warm-500 text-sm flex items-center justify-center gap-2" role="status" aria-live="polite">
+      <i data-lucide="loader-2" class="w-4 h-4 animate-spin" aria-hidden="true"></i>
       Loading your files...
     </div>
     <div id="fileSection" class="hidden">
-      <div class="bg-white border border-green-200 rounded-2xl p-6 mb-6 shadow-sm">
+      <div class="bg-white border border-green-200 rounded-2xl p-5 sm:p-6 mb-6 shadow-sm">
         <p class="text-sm text-warm-500 mb-4">Your deliverables:</p>
         <a id="fileLink" href="#" target="_blank"
           class="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3.5 rounded-xl transition shadow-lg shadow-green-500/20">
-          <i data-lucide="download" class="w-4 h-4"></i>
+          <i data-lucide="download" class="w-4 h-4" aria-hidden="true"></i>
           Download Files
         </a>
       </div>
       <p class="text-xs text-warm-500 flex items-center justify-center gap-1">
-        <i data-lucide="bookmark" class="w-3 h-3"></i>
+        <i data-lucide="bookmark" class="w-3 h-3" aria-hidden="true"></i>
         Bookmark this page -- your link stays active.
       </p>
     </div>
-    <div id="error" class="hidden text-amber-600 text-sm">
+    <div id="error" class="hidden text-amber-600 text-sm" role="alert">
       Payment received! Files will unlock shortly. <a href="/p/${id}" class="underline font-medium hover:text-amber-700 transition">Return to proposal</a>
     </div>
     <p class="mt-8">
@@ -1320,8 +1322,8 @@ function privacyPage(loggedIn = false): string {
 </head>
 <body class="bg-warm-50 text-warm-900 min-h-screen antialiased">
   ${navHtml(loggedIn)}
-  <main class="max-w-2xl mx-auto px-6 py-16">
-    <h1 class="text-3xl font-bold text-warm-950 mb-2 tracking-tight">Privacy Policy</h1>
+  <main class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <h1 class="text-2xl sm:text-3xl font-bold text-warm-950 mb-2 tracking-tight">Privacy Policy</h1>
     <p class="text-warm-500 text-sm mb-10">Last updated: March 21, 2026</p>
     <div class="prose prose-warm space-y-6 text-warm-700 text-sm leading-relaxed">
 
@@ -1371,8 +1373,8 @@ function termsPage(loggedIn = false): string {
 </head>
 <body class="bg-warm-50 text-warm-900 min-h-screen antialiased">
   ${navHtml(loggedIn)}
-  <main class="max-w-2xl mx-auto px-6 py-16">
-    <h1 class="text-3xl font-bold text-warm-950 mb-2 tracking-tight">Terms of Service</h1>
+  <main class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <h1 class="text-2xl sm:text-3xl font-bold text-warm-950 mb-2 tracking-tight">Terms of Service</h1>
     <p class="text-warm-500 text-sm mb-10">Last updated: March 21, 2026</p>
     <div class="prose prose-warm space-y-6 text-warm-700 text-sm leading-relaxed">
 
