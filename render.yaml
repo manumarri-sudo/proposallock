@@ -3,6 +3,7 @@ services:
     name: proposallock
     runtime: node
     plan: free
+    nodeVersion: "22.11.0"
     buildCommand: npm install
     startCommand: node src/index.ts
     envVars:
