@@ -62,6 +62,14 @@ function checkRateLimit(ip: string, maxPerMinute = 10): boolean {
   return true;
 }
 
+// Cleanup stale rate limit entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimits) {
+    if (now > entry.resetAt) rateLimits.delete(ip);
+  }
+}, 300_000);
+
 // ─── Security: Email validation ───
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -246,7 +254,9 @@ app.post("/api/proposals", async (c) => {
 
 // GET /api/proposals/:id -- public data (never exposes file_url if unpaid)
 app.get("/api/proposals/:id", async (c) => {
-  const proposal = await getProposal(c.req.param("id"));
+  const id = c.req.param("id");
+  if (!VALID_ID.test(id)) return c.json({ error: "Not found" }, 404);
+  const proposal = await getProposal(id);
   if (!proposal) return c.json({ error: "Not found" }, 404);
 
   return c.json({
@@ -263,7 +273,9 @@ app.get("/api/proposals/:id", async (c) => {
 
 // GET /api/proposals/:id/status -- fast polling endpoint
 app.get("/api/proposals/:id/status", async (c) => {
-  const proposal = await getProposal(c.req.param("id"));
+  const id = c.req.param("id");
+  if (!VALID_ID.test(id)) return c.json({ error: "Not found" }, 404);
+  const proposal = await getProposal(id);
   if (!proposal) return c.json({ error: "Not found" }, 404);
   return c.json({ paid: proposal.paid === true });
 });

@@ -64,7 +64,7 @@ export async function markPaid(id: string): Promise<void> {
     .update({ paid: true, paid_at: new Date().toISOString() })
     .eq("id", id);
 
-  if (error) console.error(`Failed to mark paid: ${error.message}`);
+  if (error) throw new Error(`Failed to mark paid: ${error.message}`);
 }
 
 export async function getProposalsByEmail(
