@@ -1,19 +1,48 @@
+import "dotenv/config";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { createProposal, getProposal, markPaid, markPaidByVariant } from "./db.ts";
+import { csrf } from "hono/csrf";
+import { secureHeaders } from "hono/secure-headers";
+import {
+  createServerClient,
+  parseCookieHeader,
+  serializeCookieHeader,
+} from "@supabase/ssr";
+import {
+  createProposal,
+  getProposal,
+  markPaid,
+  getProposalsByEmail,
+  supabase,
+} from "./db.ts";
 import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy.ts";
+import { notifyFreelancerPaid } from "./notify.ts";
+
+const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 
 const app = new Hono();
+
+// ─── Security middleware ───
+app.use(secureHeaders());
+// CSRF on all mutating routes except webhooks (webhooks use HMAC)
+app.use("*", async (c, next) => {
+  if (c.req.path.startsWith("/api/webhooks/")) return next();
+  return csrf({ origin: process.env.BASE_URL || "" })(c, next);
+});
 
 // Serve static files from public/
 app.use("/assets/*", serveStatic({ root: "./public" }));
 
-// ─── API Routes ───────────────────────────────────────────────────────────────
-
 // ─── Security: HTML escaping ───
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 // ─── Security: ID validation ───
@@ -33,9 +62,119 @@ function checkRateLimit(ip: string, maxPerMinute = 10): boolean {
   return true;
 }
 
+// ─── Security: Email validation ───
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// ─── Auth: per-request Supabase client with cookie session ───
+function createRequestClient(c: any) {
+  return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    cookies: {
+      getAll() {
+        return parseCookieHeader(c.req.header("Cookie") ?? "");
+      },
+      setAll(cookiesToSet: any[]) {
+        cookiesToSet.forEach(({ name, value, options }: any) => {
+          c.header(
+            "Set-Cookie",
+            serializeCookieHeader(name, value, {
+              ...options,
+              httpOnly: true,
+              secure: process.env.NODE_ENV === "production",
+              sameSite: "Lax",
+              path: "/",
+            }),
+            { append: true }
+          );
+        });
+      },
+    },
+  });
+}
+
+// Always use getUser() (server-verified), never getSession() alone
+async function getSessionUser(
+  c: any
+): Promise<{ id: string; email: string } | null> {
+  const client = createRequestClient(c);
+  const {
+    data: { user },
+    error,
+  } = await client.auth.getUser();
+  if (error || !user || !user.email) return null;
+  return { id: user.id, email: user.email };
+}
+
+// Shared Tailwind config block
+const tailwindConfig = `
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'] },
+          colors: {
+            warm: {
+              50: '#fdfcfb', 100: '#faf6f1', 200: '#f3ece3', 300: '#e8ddd0',
+              400: '#c9b99a', 500: '#a89272', 600: '#8b7355', 700: '#6b5a44',
+              800: '#4a3f32', 900: '#2d2620', 950: '#1a1714',
+            },
+            accent: {
+              50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc',
+              400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
+            },
+            amber: { 50: '#fffbeb', 100: '#fef3c7', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .accent-gradient { background: linear-gradient(135deg, #4f46e5, #6366f1); }
+  </style>`;
+
+// Shared nav HTML
+function navHtml(loggedIn = false): string {
+  return `
+  <nav class="max-w-3xl mx-auto px-6 py-6 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2">
+      <div class="w-8 h-8 accent-gradient rounded-lg flex items-center justify-center">
+        <i data-lucide="lock" class="w-4 h-4 text-white"></i>
+      </div>
+      <span class="font-semibold text-warm-900 text-lg tracking-tight">ProposalLock</span>
+    </a>
+    <div class="flex items-center gap-4">
+      ${loggedIn ? '<a href="/dashboard" class="text-sm font-medium text-accent-600 hover:text-accent-700 transition">Dashboard</a>' : ""}
+      <a href="#create" class="text-sm font-medium text-accent-600 hover:text-accent-700 transition">Create a proposal</a>
+      ${loggedIn ? '<a href="/auth/logout" class="text-sm text-warm-500 hover:text-warm-700 transition">Log out</a>' : '<a href="/login" class="text-sm text-warm-500 hover:text-warm-700 transition">Log in</a>'}
+    </div>
+  </nav>`;
+}
+
+// Shared footer HTML
+function footerHtml(): string {
+  return `
+  <footer class="max-w-2xl mx-auto px-6 py-10 border-t border-warm-200 text-center">
+    <div class="flex items-center justify-center gap-2 mb-3">
+      <div class="w-6 h-6 accent-gradient rounded-md flex items-center justify-center">
+        <i data-lucide="lock" class="w-3 h-3 text-white"></i>
+      </div>
+      <span class="font-semibold text-warm-700 text-sm">ProposalLock</span>
+    </div>
+    <p class="text-warm-500 text-sm">
+      &copy; 2026 ProposalLock &middot;
+      <a href="/privacy" class="hover:text-accent-600 transition">Privacy</a> &middot;
+      <a href="/terms" class="hover:text-accent-600 transition">Terms</a> &middot;
+      <a href="mailto:hello@proposallock.io" class="hover:text-accent-600 transition">Contact</a>
+    </p>
+  </footer>`;
+}
+
+// ─── API Routes ──────────────────────────────────────────────────────────────
+
 // POST /api/proposals -- create proposal + LS checkout
 app.post("/api/proposals", async (c) => {
-  // Rate limit: 10 proposals per minute per IP
   const ip = c.req.header("x-forwarded-for") || "unknown";
   if (!checkRateLimit(ip, 10)) {
     return c.json({ error: "Too many requests. Try again in a minute." }, 429);
@@ -44,30 +183,37 @@ app.post("/api/proposals", async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body) return c.json({ error: "Invalid JSON" }, 400);
 
-  const { title, client_name, file_url, price } = body;
+  const { title, client_name, file_url, price, email } = body;
   if (!title || !client_name || !file_url || !price) {
-    return c.json({ error: "Missing required fields: title, client_name, file_url, price" }, 400);
+    return c.json(
+      { error: "Missing required fields: title, client_name, file_url, price" },
+      400
+    );
   }
 
-  // Input validation: length limits
-  if (typeof title !== "string" || title.length > 200) return c.json({ error: "Title too long (max 200 chars)" }, 400);
-  if (typeof client_name !== "string" || client_name.length > 100) return c.json({ error: "Client name too long (max 100 chars)" }, 400);
-  if (typeof file_url !== "string" || file_url.length > 2000) return c.json({ error: "File URL too long (max 2000 chars)" }, 400);
-
-  // URL validation: must be https
-  if (!file_url.startsWith("https://")) {
+  if (typeof title !== "string" || title.length > 200)
+    return c.json({ error: "Title too long (max 200 chars)" }, 400);
+  if (typeof client_name !== "string" || client_name.length > 100)
+    return c.json({ error: "Client name too long (max 100 chars)" }, 400);
+  if (typeof file_url !== "string" || file_url.length > 2000)
+    return c.json({ error: "File URL too long (max 2000 chars)" }, 400);
+  if (!file_url.startsWith("https://"))
     return c.json({ error: "File URL must start with https://" }, 400);
+
+  // Validate email if provided
+  let freelancerEmail: string | null = null;
+  if (email && typeof email === "string") {
+    if (!EMAIL_RE.test(email) || email.length > 320)
+      return c.json({ error: "Invalid email address" }, 400);
+    freelancerEmail = email.toLowerCase();
   }
 
   const priceCents = Math.round(parseFloat(price) * 100);
-  if (isNaN(priceCents) || priceCents < 100) {
+  if (isNaN(priceCents) || priceCents < 100)
     return c.json({ error: "Price must be at least $1.00" }, 400);
-  }
-  if (priceCents > 1_000_000) {
+  if (priceCents > 1_000_000)
     return c.json({ error: "Price cannot exceed $10,000" }, 400);
-  }
 
-  // Full UUID for strong proposal IDs (128 bits entropy)
   const id = crypto.randomUUID().replace(/-/g, "");
   const baseUrl = process.env.BASE_URL || `https://${c.req.header("host")}`;
   const successUrl = `${baseUrl}/p/${id}/success`;
@@ -80,7 +226,7 @@ app.post("/api/proposals", async (c) => {
     successUrl,
   });
 
-  const proposal = createProposal({
+  const proposal = await createProposal({
     id,
     title,
     client_name,
@@ -88,6 +234,7 @@ app.post("/api/proposals", async (c) => {
     price_cents: priceCents,
     ls_variant_id: checkout?.variantId ?? null,
     ls_checkout_url: checkout?.checkoutUrl ?? null,
+    freelancer_email: freelancerEmail,
   });
 
   return c.json({
@@ -97,9 +244,9 @@ app.post("/api/proposals", async (c) => {
   });
 });
 
-// GET /api/proposals/:id — public data (never exposes file_url if unpaid)
-app.get("/api/proposals/:id", (c) => {
-  const proposal = getProposal(c.req.param("id"));
+// GET /api/proposals/:id -- public data (never exposes file_url if unpaid)
+app.get("/api/proposals/:id", async (c) => {
+  const proposal = await getProposal(c.req.param("id"));
   if (!proposal) return c.json({ error: "Not found" }, 404);
 
   return c.json({
@@ -108,21 +255,20 @@ app.get("/api/proposals/:id", (c) => {
     client_name: proposal.client_name,
     price_cents: proposal.price_cents,
     ls_checkout_url: proposal.ls_checkout_url,
-    paid: proposal.paid === 1,
+    paid: proposal.paid === true,
     paid_at: proposal.paid_at,
-    // Only expose file_url if paid
-    file_url: proposal.paid === 1 ? proposal.file_url : null,
+    file_url: proposal.paid === true ? proposal.file_url : null,
   });
 });
 
-// GET /api/proposals/:id/status — fast polling endpoint
-app.get("/api/proposals/:id/status", (c) => {
-  const proposal = getProposal(c.req.param("id"));
+// GET /api/proposals/:id/status -- fast polling endpoint
+app.get("/api/proposals/:id/status", async (c) => {
+  const proposal = await getProposal(c.req.param("id"));
   if (!proposal) return c.json({ error: "Not found" }, 404);
-  return c.json({ paid: proposal.paid === 1 });
+  return c.json({ paid: proposal.paid === true });
 });
 
-// POST /api/webhooks/lemonsqueezy — LS order_created event
+// POST /api/webhooks/lemonsqueezy -- LS order_created event
 app.post("/api/webhooks/lemonsqueezy", async (c) => {
   const signature = c.req.header("x-signature") || "";
   const rawBody = await c.req.text();
@@ -144,23 +290,128 @@ app.post("/api/webhooks/lemonsqueezy", async (c) => {
     const proposalId = customData?.proposal_id;
 
     if (proposalId && typeof proposalId === "string") {
-      markPaid(proposalId);
-      console.log(`Payment confirmed for proposal ${proposalId.slice(0, 8)}...`);
+      // Get proposal before marking paid (need email for notification)
+      const proposal = await getProposal(proposalId);
+      await markPaid(proposalId);
+      console.log(
+        `Payment confirmed for proposal ${proposalId.slice(0, 8)}...`
+      );
+
+      // Send email notification to freelancer
+      if (proposal?.freelancer_email) {
+        notifyFreelancerPaid({
+          freelancerEmail: proposal.freelancer_email,
+          title: proposal.title,
+          clientName: proposal.client_name,
+          priceCents: proposal.price_cents,
+          proposalId,
+        }).catch((e) => console.error("Notification error:", e));
+      }
     }
-    // NOTE: Removed markPaidByVariant fallback -- shared variant ID would unlock ALL proposals
   }
 
   return c.json({ ok: true });
 });
 
-// ─── HTML Pages ───────────────────────────────────────────────────────────────
+// ─── Auth Routes (Supabase Magic Link) ───────────────────────────────────────
 
-// Serve landing page + proposal creator at /
-app.get("/", (c) => {
-  return c.html(landingPage());
+// POST /auth/magic-link -- send magic link email
+app.post("/auth/magic-link", async (c) => {
+  const ip = c.req.header("x-forwarded-for") || "unknown";
+  if (!checkRateLimit(ip, 5)) {
+    return c.json({ error: "Too many requests. Try again in a minute." }, 429);
+  }
+
+  const body = await c.req.json().catch(() => null);
+  if (!body?.email || !EMAIL_RE.test(body.email)) {
+    return c.json({ error: "Valid email required" }, 400);
+  }
+
+  const client = createRequestClient(c);
+  const baseUrl = process.env.BASE_URL || `https://${c.req.header("host")}`;
+  const { error } = await client.auth.signInWithOtp({
+    email: body.email.toLowerCase(),
+    options: { emailRedirectTo: `${baseUrl}/auth/callback` },
+  });
+
+  if (error) {
+    console.error("Magic link error:", error.message);
+    return c.json({ error: "Failed to send login link" }, 500);
+  }
+
+  return c.json({ ok: true });
 });
 
-// Proposal page (XSS protection: validate ID is hex-only before injecting into HTML)
+// GET /auth/callback -- handle PKCE magic link redirect
+app.get("/auth/callback", async (c) => {
+  const url = new URL(c.req.url);
+  const tokenHash = url.searchParams.get("token_hash");
+  const type = url.searchParams.get("type");
+  const code = url.searchParams.get("code");
+  const client = createRequestClient(c);
+
+  // PKCE flow: exchange code for session
+  if (code) {
+    const { error } = await client.auth.exchangeCodeForSession(code);
+    if (!error) return c.redirect("/dashboard");
+  }
+
+  // Token hash flow (email OTP verification)
+  if (tokenHash && type) {
+    const { error } = await client.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type as any,
+    });
+    if (!error) return c.redirect("/dashboard");
+  }
+
+  // Fallback for hash-fragment redirect (implicit flow)
+  return c.html(`<!DOCTYPE html>
+<html><head><title>Logging in...</title></head>
+<body>
+  <p>Completing login...</p>
+  <script>
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+      window.location.href = '/auth/callback?' + hash;
+    } else {
+      window.location.href = '/login?error=auth_failed';
+    }
+  </script>
+</body></html>`);
+});
+
+// GET /auth/logout
+app.get("/auth/logout", async (c) => {
+  const client = createRequestClient(c);
+  await client.auth.signOut();
+  return c.redirect("/");
+});
+
+// ─── HTML Pages ──────────────────────────────────────────────────────────────
+
+// Login page
+app.get("/login", (c) => {
+  return c.html(loginPage());
+});
+
+// Dashboard (requires auth)
+app.get("/dashboard", async (c) => {
+  const user = await getSessionUser(c);
+  if (!user) {
+    return c.redirect("/login");
+  }
+  const proposals = await getProposalsByEmail(user.email);
+  return c.html(dashboardPage(user.email, proposals));
+});
+
+// Landing page
+app.get("/", async (c) => {
+  const user = await getSessionUser(c);
+  return c.html(landingPage(!!user));
+});
+
+// Proposal page
 app.get("/p/:id", (c) => {
   const id = c.req.param("id");
   if (!VALID_ID.test(id)) return c.text("Not found", 404);
@@ -174,76 +425,232 @@ app.get("/p/:id/success", (c) => {
   return c.html(successPage(id));
 });
 
-// ─── Page HTML ────────────────────────────────────────────────────────────────
+// Privacy Policy
+app.get("/privacy", async (c) => {
+  const user = await getSessionUser(c);
+  return c.html(privacyPage(!!user));
+});
 
-function landingPage(): string {
-  return /* html */`<!DOCTYPE html>
+// Terms of Service
+app.get("/terms", async (c) => {
+  const user = await getSessionUser(c);
+  return c.html(termsPage(!!user));
+});
+
+// ─── Page HTML ───────────────────────────────────────────────────────────────
+
+function loginPage(): string {
+  return /* html */ `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log in -- ProposalLock</title>
+  ${tailwindConfig}
+</head>
+<body class="bg-warm-50 text-warm-900 min-h-screen flex items-center justify-center px-6 antialiased">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="w-12 h-12 accent-gradient rounded-xl flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="lock" class="w-6 h-6 text-white"></i>
+      </div>
+      <h1 class="text-2xl font-bold text-warm-950 tracking-tight">Log in to ProposalLock</h1>
+      <p class="text-warm-500 text-sm mt-2">We will send you a magic link -- no password needed.</p>
+    </div>
+
+    <div class="bg-white border border-warm-200 rounded-2xl p-6 shadow-sm">
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-warm-700 mb-1.5">Email address</label>
+          <input type="email" name="email" required placeholder="you@example.com"
+            class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
+        </div>
+        <button type="submit" id="loginBtn"
+          class="w-full accent-gradient hover:opacity-90 disabled:opacity-50 text-white font-semibold px-6 py-3.5 rounded-xl transition shadow-lg shadow-accent-500/20 flex items-center justify-center gap-2">
+          <i data-lucide="mail" class="w-4 h-4"></i>
+          Send Magic Link
+        </button>
+      </form>
+      <div id="loginSuccess" class="hidden mt-4 bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+        <p class="text-green-700 text-sm font-medium">Check your email for a login link.</p>
+      </div>
+      <div id="loginError" class="hidden mt-4 text-red-500 text-sm text-center"></div>
+    </div>
+
+    <p class="text-center text-warm-500 text-xs mt-6">
+      <a href="/" class="hover:text-accent-600 transition">Back to home</a>
+    </p>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    const form = document.getElementById('loginForm');
+    const btn = document.getElementById('loginBtn');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      btn.disabled = true;
+      btn.innerHTML = 'Sending...';
+      document.getElementById('loginError').classList.add('hidden');
+      try {
+        const res = await fetch('/auth/magic-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email.value }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error);
+        document.getElementById('loginSuccess').classList.remove('hidden');
+        form.classList.add('hidden');
+      } catch (err) {
+        document.getElementById('loginError').textContent = err.message;
+        document.getElementById('loginError').classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="mail" class="w-4 h-4"></i> Send Magic Link';
+        lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>`;
+}
+
+function dashboardPage(
+  email: string,
+  proposals: Array<{
+    id: string;
+    title: string;
+    client_name: string;
+    price_cents: number;
+    paid: boolean;
+    created_at: string;
+  }>
+): string {
+  const rows = proposals
+    .map((p) => {
+      const price = (p.price_cents / 100).toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD",
+      });
+      const date = new Date(p.created_at).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      const status = p.paid
+        ? '<span class="inline-flex items-center gap-1 text-green-700 bg-green-50 px-2 py-0.5 rounded-full text-xs font-medium"><i data-lucide="check-circle-2" class="w-3 h-3"></i> Paid</span>'
+        : '<span class="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full text-xs font-medium"><i data-lucide="clock" class="w-3 h-3"></i> Pending</span>';
+      const baseUrl =
+        process.env.BASE_URL || "https://proposallock.onrender.com";
+      return `
+        <tr class="border-b border-warm-100 hover:bg-warm-50 transition">
+          <td class="py-3 px-4">
+            <a href="${baseUrl}/p/${escapeHtml(p.id)}" class="text-accent-600 hover:text-accent-700 font-medium text-sm transition">${escapeHtml(p.title)}</a>
+          </td>
+          <td class="py-3 px-4 text-sm text-warm-600">${escapeHtml(p.client_name)}</td>
+          <td class="py-3 px-4 text-sm text-warm-800 font-medium">${price}</td>
+          <td class="py-3 px-4">${status}</td>
+          <td class="py-3 px-4 text-sm text-warm-500">${date}</td>
+        </tr>`;
+    })
+    .join("");
+
+  const totalRevenue = proposals
+    .filter((p) => p.paid)
+    .reduce((sum, p) => sum + p.price_cents, 0);
+  const revenueFormatted = (totalRevenue / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+  });
+  const paidCount = proposals.filter((p) => p.paid).length;
+  const pendingCount = proposals.filter((p) => !p.paid).length;
+
+  return /* html */ `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard -- ProposalLock</title>
+  ${tailwindConfig}
+</head>
+<body class="bg-warm-50 text-warm-900 min-h-screen antialiased">
+  ${navHtml(true)}
+
+  <main class="max-w-4xl mx-auto px-6 py-10">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-bold text-warm-950 tracking-tight">Dashboard</h1>
+        <p class="text-warm-500 text-sm">${escapeHtml(email)}</p>
+      </div>
+      <a href="#create" class="inline-flex items-center gap-2 accent-gradient hover:opacity-90 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm shadow-lg shadow-accent-500/20">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        New Proposal
+      </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4 mb-8">
+      <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
+        <p class="text-xs text-warm-500 uppercase tracking-wider mb-1">Total Revenue</p>
+        <p class="text-2xl font-bold text-warm-950">${revenueFormatted}</p>
+      </div>
+      <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
+        <p class="text-xs text-warm-500 uppercase tracking-wider mb-1">Paid</p>
+        <p class="text-2xl font-bold text-green-600">${paidCount}</p>
+      </div>
+      <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
+        <p class="text-xs text-warm-500 uppercase tracking-wider mb-1">Pending</p>
+        <p class="text-2xl font-bold text-amber-600">${pendingCount}</p>
+      </div>
+    </div>
+
+    <!-- Proposals Table -->
+    ${
+      proposals.length > 0
+        ? `
+    <div class="bg-white border border-warm-200 rounded-2xl shadow-sm overflow-hidden">
+      <table class="w-full">
+        <thead>
+          <tr class="bg-warm-50 border-b border-warm-200">
+            <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Project</th>
+            <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Client</th>
+            <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Price</th>
+            <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Status</th>
+            <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Created</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`
+        : `
+    <div class="bg-white border border-warm-200 rounded-2xl p-12 text-center shadow-sm">
+      <div class="w-14 h-14 bg-warm-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="file-text" class="w-6 h-6 text-warm-400"></i>
+      </div>
+      <p class="text-warm-800 font-semibold mb-1">No proposals yet</p>
+      <p class="text-warm-500 text-sm">Create your first proposal to get started.</p>
+    </div>`
+    }
+  </main>
+
+  ${footerHtml()}
+  <script>lucide.createIcons();</script>
+</body>
+</html>`;
+}
+
+function landingPage(loggedIn = false): string {
+  return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ProposalLock -- Your files unlock the moment they pay</title>
   <meta name="description" content="Create a proposal link. Attach your deliverables. Get paid before they download." />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'] },
-          colors: {
-            warm: {
-              50: '#fdfcfb',
-              100: '#faf6f1',
-              200: '#f3ece3',
-              300: '#e8ddd0',
-              400: '#c9b99a',
-              500: '#a89272',
-              600: '#8b7355',
-              700: '#6b5a44',
-              800: '#4a3f32',
-              900: '#2d2620',
-              950: '#1a1714',
-            },
-            accent: {
-              50: '#eef2ff',
-              100: '#e0e7ff',
-              200: '#c7d2fe',
-              300: '#a5b4fc',
-              400: '#818cf8',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
-            },
-            amber: {
-              50: '#fffbeb',
-              100: '#fef3c7',
-              400: '#fbbf24',
-              500: '#f59e0b',
-              600: '#d97706',
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .accent-gradient { background: linear-gradient(135deg, #4f46e5, #6366f1); }
-  </style>
+  ${tailwindConfig}
 </head>
 <body class="bg-warm-50 text-warm-900 min-h-screen antialiased">
 
-  <!-- Nav -->
-  <nav class="max-w-3xl mx-auto px-6 py-6 flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <div class="w-8 h-8 accent-gradient rounded-lg flex items-center justify-center">
-        <i data-lucide="lock" class="w-4 h-4 text-white"></i>
-      </div>
-      <span class="font-semibold text-warm-900 text-lg tracking-tight">ProposalLock</span>
-    </div>
-    <a href="#create" class="text-sm font-medium text-accent-600 hover:text-accent-700 transition">Create a proposal</a>
-  </nav>
+  ${navHtml(loggedIn)}
 
   <!-- Hero -->
   <section class="max-w-2xl mx-auto px-6 pt-16 pb-20 text-center">
@@ -261,7 +668,7 @@ function landingPage(): string {
       Create Your First Proposal Free
       <i data-lucide="arrow-right" class="w-4 h-4"></i>
     </a>
-    <p class="text-sm text-warm-500 mt-5">No account needed. Works in 30 seconds.</p>
+    <p class="text-sm text-warm-500 mt-5">Works in 30 seconds.</p>
   </section>
 
   <!-- Pain Points -->
@@ -311,6 +718,11 @@ function landingPage(): string {
 
       <form id="proposalForm" class="space-y-5">
         <div>
+          <label class="block text-sm font-medium text-warm-700 mb-1.5">Your email <span class="text-warm-400 font-normal">(for payment notifications)</span></label>
+          <input type="email" name="email" placeholder="you@example.com"
+            class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
+        </div>
+        <div>
           <label class="block text-sm font-medium text-warm-700 mb-1.5">Project title</label>
           <input type="text" name="title" required placeholder="Brand redesign -- Acme Corp"
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
@@ -359,6 +771,34 @@ function landingPage(): string {
     </div>
   </section>
 
+  <!-- Security -->
+  <section class="max-w-2xl mx-auto px-6 py-16">
+    <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Security you can trust</h2>
+    <div class="grid sm:grid-cols-3 gap-6">
+      <div class="bg-white border border-warm-200 rounded-xl p-5 text-center shadow-sm">
+        <div class="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center mx-auto mb-3">
+          <i data-lucide="shield-check" class="w-5 h-5 text-accent-600"></i>
+        </div>
+        <p class="font-medium text-warm-800 text-sm mb-1">HMAC-verified webhooks</p>
+        <p class="text-warm-500 text-xs">Every payment is cryptographically verified before unlocking files.</p>
+      </div>
+      <div class="bg-white border border-warm-200 rounded-xl p-5 text-center shadow-sm">
+        <div class="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center mx-auto mb-3">
+          <i data-lucide="eye-off" class="w-5 h-5 text-accent-600"></i>
+        </div>
+        <p class="font-medium text-warm-800 text-sm mb-1">Hidden until paid</p>
+        <p class="text-warm-500 text-xs">File URLs are never exposed in the browser, API, or source code until payment clears.</p>
+      </div>
+      <div class="bg-white border border-warm-200 rounded-xl p-5 text-center shadow-sm">
+        <div class="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center mx-auto mb-3">
+          <i data-lucide="lock" class="w-5 h-5 text-accent-600"></i>
+        </div>
+        <p class="font-medium text-warm-800 text-sm mb-1">No file hosting</p>
+        <p class="text-warm-500 text-xs">Your files stay on Google Drive or Dropbox. We never store or transfer your files.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Pricing -->
   <section class="max-w-2xl mx-auto px-6 py-16">
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Simple pricing</h2>
@@ -372,7 +812,7 @@ function landingPage(): string {
         <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0"></i> Works with Google Drive & Dropbox</li>
         <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0"></i> 30-day money-back guarantee</li>
       </ul>
-      <a href="${process.env.LS_CHECKOUT_URL || '#create'}"
+      <a href="${process.env.LS_CHECKOUT_URL || "#create"}"
         class="block w-full accent-gradient hover:opacity-90 text-white font-semibold py-3.5 rounded-xl transition shadow-lg shadow-accent-500/20">
         Get ProposalLock -- $29
       </a>
@@ -397,22 +837,17 @@ function landingPage(): string {
         <p class="text-warm-500 text-sm leading-relaxed">No. The price is locked when the proposal is created. This protects both you and your client. Create a new proposal if you need a different price.</p>
       </div>
       <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
-        <p class="font-medium text-warm-800 mb-2">Do I need an account?</p>
-        <p class="text-warm-500 text-sm leading-relaxed">No accounts, no login, no dashboard. Paste your file, set a price, get a link. That is the whole product.</p>
+        <p class="font-medium text-warm-800 mb-2">How do I track my proposals?</p>
+        <p class="text-warm-500 text-sm leading-relaxed">Log in with your email to access your dashboard. You will see all your proposals, payment status, and total revenue at a glance.</p>
+      </div>
+      <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
+        <p class="font-medium text-warm-800 mb-2">Is my data secure?</p>
+        <p class="text-warm-500 text-sm leading-relaxed">Yes. We use HMAC-SHA256 webhook verification, encrypted database connections, and never store your actual files. Payments are processed securely through LemonSqueezy.</p>
       </div>
     </div>
   </section>
 
-  <!-- Footer -->
-  <footer class="max-w-2xl mx-auto px-6 py-10 border-t border-warm-200 text-center">
-    <div class="flex items-center justify-center gap-2 mb-3">
-      <div class="w-6 h-6 accent-gradient rounded-md flex items-center justify-center">
-        <i data-lucide="lock" class="w-3 h-3 text-white"></i>
-      </div>
-      <span class="font-semibold text-warm-700 text-sm">ProposalLock</span>
-    </div>
-    <p class="text-warm-500 text-sm">&copy; 2026 ProposalLock &middot; <a href="mailto:hello@proposallock.io" class="hover:text-accent-600 transition">Contact</a></p>
-  </footer>
+  ${footerHtml()}
 
   <script>
     lucide.createIcons();
@@ -471,31 +906,13 @@ function landingPage(): string {
 }
 
 function proposalPage(id: string): string {
-  return /* html */`<!DOCTYPE html>
+  return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ProposalLock -- Proposal</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'] },
-          colors: {
-            warm: { 50: '#fdfcfb', 100: '#faf6f1', 200: '#f3ece3', 300: '#e8ddd0', 400: '#c9b99a', 500: '#a89272', 600: '#8b7355', 700: '#6b5a44', 800: '#4a3f32', 900: '#2d2620', 950: '#1a1714' },
-            accent: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .accent-gradient { background: linear-gradient(135deg, #4f46e5, #6366f1); }
-  </style>
+  ${tailwindConfig}
 </head>
 <body class="bg-warm-50 text-warm-900 min-h-screen flex items-start justify-center pt-12 px-6 antialiased">
   <div class="w-full max-w-md">
@@ -503,7 +920,7 @@ function proposalPage(id: string): string {
       <div class="w-6 h-6 accent-gradient rounded-md flex items-center justify-center">
         <i data-lucide="lock" class="w-3 h-3 text-white"></i>
       </div>
-      <span class="text-xs text-warm-500 tracking-widest uppercase font-semibold">Secured by ProposalLock</span>
+      <a href="https://proposallock.onrender.com/?ref=proposal" class="text-xs text-warm-500 tracking-widest uppercase font-semibold hover:text-accent-600 transition">Powered by ProposalLock</a>
     </div>
 
     <div id="loading" class="text-center text-warm-500 py-12 flex items-center justify-center gap-2">
@@ -566,6 +983,12 @@ function proposalPage(id: string): string {
 
     <div id="error" class="hidden text-center text-red-500 py-12">Proposal not found.</div>
   </div>
+
+  <p class="text-center mt-8 mb-4">
+    <a href="https://proposallock.onrender.com/?ref=proposal" class="text-xs text-warm-400 hover:text-accent-600 transition">
+      Get paid before you deliver -- try ProposalLock free
+    </a>
+  </p>
 
   <script>
     lucide.createIcons();
@@ -635,31 +1058,13 @@ function proposalPage(id: string): string {
 }
 
 function successPage(id: string): string {
-  return /* html */`<!DOCTYPE html>
+  return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ProposalLock -- Payment Confirmed</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'] },
-          colors: {
-            warm: { 50: '#fdfcfb', 100: '#faf6f1', 200: '#f3ece3', 300: '#e8ddd0', 400: '#c9b99a', 500: '#a89272', 700: '#6b5a44', 800: '#4a3f32', 900: '#2d2620', 950: '#1a1714' },
-            accent: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5' },
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .accent-gradient { background: linear-gradient(135deg, #4f46e5, #6366f1); }
-  </style>
+  ${tailwindConfig}
 </head>
 <body class="bg-warm-50 text-warm-900 min-h-screen flex items-center justify-center px-6 antialiased">
   <div class="w-full max-w-md text-center">
@@ -690,6 +1095,11 @@ function successPage(id: string): string {
     <div id="error" class="hidden text-amber-600 text-sm">
       Payment received! Files will unlock shortly. <a href="/p/${id}" class="underline font-medium hover:text-amber-700 transition">Return to proposal</a>
     </div>
+    <p class="mt-8">
+      <a href="https://proposallock.onrender.com/?ref=success" class="text-xs text-warm-400 hover:text-accent-600 transition">
+        Powered by ProposalLock -- get paid before you deliver
+      </a>
+    </p>
   </div>
 
   <script>
@@ -719,10 +1129,111 @@ function successPage(id: string): string {
 </html>`;
 }
 
-// ─── Start Server ─────────────────────────────────────────────────────────────
+function privacyPage(loggedIn = false): string {
+  return /* html */ `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy -- ProposalLock</title>
+  ${tailwindConfig}
+</head>
+<body class="bg-warm-50 text-warm-900 min-h-screen antialiased">
+  ${navHtml(loggedIn)}
+  <main class="max-w-2xl mx-auto px-6 py-16">
+    <h1 class="text-3xl font-bold text-warm-950 mb-2 tracking-tight">Privacy Policy</h1>
+    <p class="text-warm-500 text-sm mb-10">Last updated: March 21, 2026</p>
+    <div class="prose prose-warm space-y-6 text-warm-700 text-sm leading-relaxed">
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">1. What we collect</h2>
+      <p>When you create a proposal, we store: project title, client name, file URL, price, and optionally your email address. When your client pays, we record the payment timestamp. We collect IP addresses for rate limiting (held in memory only, not persisted).</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">2. How we use your data</h2>
+      <ul class="list-disc list-inside space-y-1">
+        <li>Proposal data is used solely to gate file access behind payment.</li>
+        <li>Email addresses are used only for payment notifications and dashboard access.</li>
+        <li>We do not sell, rent, or share your data with third parties except as required for payment processing.</li>
+      </ul>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">3. Payment processing</h2>
+      <p>Payments are processed by <strong>LemonSqueezy</strong> (Lemon Squeezy, LLC). We do not store credit card numbers, bank details, or payment credentials. LemonSqueezy's privacy policy governs payment data handling.</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">4. File storage</h2>
+      <p>We do not host, store, or transfer your files. File URLs point to third-party services (Google Drive, Dropbox, etc.) that you control. We only store the URL reference.</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">5. Data storage and security</h2>
+      <p>Your data is stored in a PostgreSQL database hosted by <strong>Supabase</strong> with encryption at rest and in transit. Access is restricted via Row Level Security policies and service-role authentication.</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">6. Data retention</h2>
+      <p>Proposal data is retained as long as your proposals are active. You may request deletion of your data by contacting us at hello@proposallock.io. We will delete your data within 30 days of a verified request.</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">7. Your rights</h2>
+      <p>You have the right to access, correct, or delete your personal data. For EU residents, you have rights under GDPR including data portability and the right to withdraw consent. Contact hello@proposallock.io for any data requests.</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">8. Contact</h2>
+      <p>For privacy questions: <a href="mailto:hello@proposallock.io" class="text-accent-600 hover:text-accent-700">hello@proposallock.io</a></p>
+    </div>
+  </main>
+  ${footerHtml()}
+  <script>lucide.createIcons();</script>
+</body>
+</html>`;
+}
+
+function termsPage(loggedIn = false): string {
+  return /* html */ `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terms of Service -- ProposalLock</title>
+  ${tailwindConfig}
+</head>
+<body class="bg-warm-50 text-warm-900 min-h-screen antialiased">
+  ${navHtml(loggedIn)}
+  <main class="max-w-2xl mx-auto px-6 py-16">
+    <h1 class="text-3xl font-bold text-warm-950 mb-2 tracking-tight">Terms of Service</h1>
+    <p class="text-warm-500 text-sm mb-10">Last updated: March 21, 2026</p>
+    <div class="prose prose-warm space-y-6 text-warm-700 text-sm leading-relaxed">
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">1. Service description</h2>
+      <p>ProposalLock is a tool that allows freelancers to create payment-gated proposal links. When a client pays via the embedded checkout, the linked files are automatically unlocked for download.</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">2. Acceptable use</h2>
+      <p>You agree not to use ProposalLock for illegal content, fraud, phishing, malware distribution, or any activity that violates applicable laws. We reserve the right to suspend access for violations.</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">3. Payments and refunds</h2>
+      <ul class="list-disc list-inside space-y-1">
+        <li>ProposalLock product purchase: $29 one-time payment with a 30-day money-back guarantee.</li>
+        <li>Client payments to freelancers: processed by LemonSqueezy. Refund disputes for client payments are handled between the freelancer and client.</li>
+        <li>ProposalLock is not a party to transactions between freelancers and clients.</li>
+      </ul>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">4. Limitation of liability</h2>
+      <p>ProposalLock is provided "as is" without warranties of any kind. We are not liable for: lost revenue from failed payments, file access issues caused by third-party hosting services, or disputes between freelancers and clients. Our total liability is limited to the amount you paid for the product ($29).</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">5. File delivery disclaimer</h2>
+      <p>ProposalLock gates access to URLs you provide. We do not verify, host, or guarantee the availability of linked files. Ensuring your file links work correctly and remain accessible is your responsibility.</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">6. Account-less architecture</h2>
+      <p>ProposalLock operates without traditional user accounts. Proposals are identified by cryptographically random 128-bit IDs. You are responsible for saving your proposal links. Optionally, you can provide an email to access a dashboard view of your proposals.</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">7. Changes to terms</h2>
+      <p>We may update these terms from time to time. Changes will be posted on this page with an updated "Last updated" date. Continued use after changes constitutes acceptance.</p>
+
+      <h2 class="text-lg font-semibold text-warm-900 mt-8">8. Contact</h2>
+      <p>Questions about these terms: <a href="mailto:hello@proposallock.io" class="text-accent-600 hover:text-accent-700">hello@proposallock.io</a></p>
+    </div>
+  </main>
+  ${footerHtml()}
+  <script>lucide.createIcons();</script>
+</body>
+</html>`;
+}
+
+// ─── Start Server ────────────────────────────────────────────────────────────
 
 const port = parseInt(process.env.PORT || "3000");
 console.log(`ProposalLock running on http://localhost:${port}`);
 
-// Start server
 serve({ fetch: app.fetch, port });

@@ -1,24 +1,15 @@
-import Database from "better-sqlite3";
+import "dotenv/config";
+import { createClient } from "@supabase/supabase-js";
 
-const DB_PATH = process.env.DB_PATH || "./proposallock.db";
+const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || "";
 
-export const db = new Database(DB_PATH);
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  console.error("SUPABASE_URL and SUPABASE_SERVICE_KEY are required");
+  process.exit(1);
+}
 
-// Initialize schema
-db.exec(`
-  CREATE TABLE IF NOT EXISTS proposals (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    client_name TEXT NOT NULL,
-    file_url TEXT NOT NULL,
-    price_cents INTEGER NOT NULL,
-    ls_variant_id TEXT,
-    ls_checkout_url TEXT,
-    paid INTEGER NOT NULL DEFAULT 0,
-    paid_at TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )
-`);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 export interface Proposal {
   id: string;
@@ -28,31 +19,63 @@ export interface Proposal {
   price_cents: number;
   ls_variant_id: string | null;
   ls_checkout_url: string | null;
-  paid: number;
+  paid: boolean;
   paid_at: string | null;
   created_at: string;
+  freelancer_email: string | null;
 }
 
-export function createProposal(data: Omit<Proposal, "paid" | "paid_at" | "created_at">): Proposal {
-  db.prepare(
-    `INSERT INTO proposals (id, title, client_name, file_url, price_cents, ls_variant_id, ls_checkout_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(data.id, data.title, data.client_name, data.file_url, data.price_cents, data.ls_variant_id, data.ls_checkout_url);
-  return getProposal(data.id)!;
+export async function createProposal(
+  data: Omit<Proposal, "paid" | "paid_at" | "created_at">
+): Promise<Proposal> {
+  const { data: row, error } = await supabase
+    .from("proposals")
+    .insert({
+      id: data.id,
+      title: data.title,
+      client_name: data.client_name,
+      file_url: data.file_url,
+      price_cents: data.price_cents,
+      ls_variant_id: data.ls_variant_id,
+      ls_checkout_url: data.ls_checkout_url,
+      freelancer_email: data.freelancer_email,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to create proposal: ${error.message}`);
+  return row as Proposal;
 }
 
-export function getProposal(id: string): Proposal | null {
-  return db.prepare("SELECT * FROM proposals WHERE id = ?").get(id) as Proposal | null;
+export async function getProposal(id: string): Promise<Proposal | null> {
+  const { data, error } = await supabase
+    .from("proposals")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) return null;
+  return data as Proposal;
 }
 
-export function markPaid(id: string): void {
-  db.prepare(
-    "UPDATE proposals SET paid = 1, paid_at = datetime('now') WHERE id = ?"
-  ).run(id);
+export async function markPaid(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("proposals")
+    .update({ paid: true, paid_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) console.error(`Failed to mark paid: ${error.message}`);
 }
 
-export function markPaidByVariant(variantId: string): void {
-  db.prepare(
-    "UPDATE proposals SET paid = 1, paid_at = datetime('now') WHERE ls_variant_id = ?"
-  ).run(variantId);
+export async function getProposalsByEmail(
+  email: string
+): Promise<Proposal[]> {
+  const { data, error } = await supabase
+    .from("proposals")
+    .select("*")
+    .eq("freelancer_email", email.toLowerCase())
+    .order("created_at", { ascending: false });
+
+  if (error) return [];
+  return (data as Proposal[]) || [];
 }

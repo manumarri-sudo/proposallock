@@ -8,10 +8,14 @@ services:
     envVars:
       - key: PORT
         value: 10000
-      - key: DB_PATH
-        value: /tmp/proposallock.db
       - key: NODE_ENV
         value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
       - key: LEMONSQUEEZY_API_KEY
         sync: false
       - key: LEMONSQUEEZY_STORE_ID
@@ -21,4 +25,8 @@ services:
       - key: LEMONSQUEEZY_WEBHOOK_SECRET
         sync: false
       - key: LS_CHECKOUT_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: BASE_URL
         sync: false
