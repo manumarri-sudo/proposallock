@@ -37,6 +37,24 @@ else log_fail "Dashboard redirect -> $code (expected 302)"; fi
 # 3. Create test user
 echo ""
 echo "--- 3. AUTH: CREATE TEST USER ---"
+# Clean up any existing test user first (idempotent)
+existing_json=$(curl -s "$SB_URL/auth/v1/admin/users" \
+  -H "Authorization: Bearer $SB_KEY" \
+  -H "apikey: $SB_KEY" \
+  -G --data-urlencode "email=$TEST_EMAIL")
+EXISTING_ID=$(echo "$existing_json" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+users=d.get('users',[])
+for u in users:
+    if u.get('email','') == '$TEST_EMAIL':
+        print(u.get('id',''))
+        break
+" 2>/dev/null || echo "")
+if [ -n "$EXISTING_ID" ]; then
+  curl -s -X DELETE "$SB_URL/auth/v1/admin/users/$EXISTING_ID" \
+    -H "Authorization: Bearer $SB_KEY" -H "apikey: $SB_KEY" > /dev/null 2>&1
+fi
 user_json=$(curl -s -X POST "$SB_URL/auth/v1/admin/users" \
   -H "Authorization: Bearer $SB_KEY" \
   -H "apikey: $SB_KEY" \
