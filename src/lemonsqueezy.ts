@@ -76,6 +76,7 @@ export async function createCheckoutLink(params: {
             },
             preview: false,
             expires_at: null,
+            custom_price: params.priceCents,
           },
           relationships: {
             store: {
