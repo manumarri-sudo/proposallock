@@ -22,7 +22,7 @@ export async function notifyFreelancerPaid(params: {
     currency: "USD",
   });
 
-  const baseUrl = process.env.BASE_URL || "https://proposallock.onrender.com";
+  const baseUrl = process.env.BASE_URL || "https://proposallock.vercel.app";
 
   try {
     const res = await fetch("https://api.resend.com/emails", {
