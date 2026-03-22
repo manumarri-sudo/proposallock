@@ -1407,6 +1407,6 @@ async function ensureStorageBucket() {
 ensureStorageBucket().catch((e) => console.error("Storage init error:", e));
 
 const port = parseInt(process.env.PORT || "3000");
-console.log(`ProposalLock running on http://localhost:${port}`);
+console.log(`ProposalLock v1.1.0 running on http://localhost:${port}`);
 
 serve({ fetch: app.fetch, port });
