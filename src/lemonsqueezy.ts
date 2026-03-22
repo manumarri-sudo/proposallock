@@ -2,6 +2,7 @@ const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY || "";
 const LS_STORE_ID = process.env.LEMONSQUEEZY_STORE_ID || "";
 const LS_PRODUCT_ID = process.env.LEMONSQUEEZY_PRODUCT_ID || ""; // Master ProposalLock product
 const LS_BASE_URL = "https://api.lemonsqueezy.com/v1";
+let cachedVariantId = "";
 
 const headers = {
   "Accept": "application/vnd.api+json",
@@ -26,13 +27,15 @@ export async function createCheckoutLink(params: {
   }
 
   // Look up the first variant of the product (variant ID != product ID)
-  let variantId = process.env.LEMONSQUEEZY_VARIANT_ID || "";
+  // Cache resolved variant ID to avoid redundant API calls
+  let variantId = cachedVariantId || process.env.LEMONSQUEEZY_VARIANT_ID || "";
   if (!variantId) {
     try {
       const varRes = await fetch(`${LS_BASE_URL}/variants?filter[product_id]=${LS_PRODUCT_ID}`, { headers });
       const varData = await varRes.json() as any;
       variantId = varData?.data?.[0]?.id || "";
       if (variantId) {
+        cachedVariantId = variantId;
         console.log(`Resolved variant ID: ${variantId} for product ${LS_PRODUCT_ID}`);
       } else {
         console.error("No variants found for product", LS_PRODUCT_ID, JSON.stringify(varData));

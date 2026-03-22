@@ -241,7 +241,9 @@ app.post("/api/proposals", async (c) => {
     return c.json({ error: "Client name too long (max 100 chars)" }, 400);
   if (typeof file_url !== "string" || file_url.length > 2000)
     return c.json({ error: "File URL too long (max 2000 chars)" }, 400);
-  if (!file_url.startsWith("https://") && !file_url.startsWith("uploads/"))
+  // Validate file_url: must be https:// OR a valid upload path (uploads/{uuid}/{filename})
+  const VALID_UPLOAD_PATH = /^uploads\/[a-f0-9]{32}\/[a-zA-Z0-9._-]+$/;
+  if (!file_url.startsWith("https://") && !VALID_UPLOAD_PATH.test(file_url))
     return c.json({ error: "File URL must start with https://" }, 400);
 
   // Validate email if provided
@@ -303,7 +305,7 @@ app.get("/api/proposals/:id", async (c) => {
     if (proposal.file_type === "upload" && proposal.storage_path) {
       const { data } = await supabase.storage
         .from("proposal-files")
-        .createSignedUrl(proposal.storage_path, 30 * 24 * 3600); // 30 days
+        .createSignedUrl(proposal.storage_path, 24 * 3600); // 24 hours (regenerated on each access)
       fileUrl = data?.signedUrl ?? null;
     } else {
       fileUrl = proposal.file_url;
@@ -355,6 +357,10 @@ app.post("/api/webhooks/lemonsqueezy", async (c) => {
     if (proposalId && typeof proposalId === "string") {
       // Get proposal before marking paid (need email for notification)
       const proposal = await getProposal(proposalId);
+      if (!proposal) {
+        console.error(`Webhook: proposal ${proposalId.slice(0, 8)} not found`);
+        return c.json({ ok: true });
+      }
       await markPaid(proposalId);
       console.log(
         `Payment confirmed for proposal ${proposalId.slice(0, 8)}...`
