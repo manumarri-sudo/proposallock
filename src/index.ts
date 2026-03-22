@@ -353,18 +353,21 @@ app.post("/auth/magic-link", async (c) => {
   return c.json({ ok: true });
 });
 
-// GET /auth/callback -- handle PKCE magic link redirect
+// GET /auth/callback -- handle all Supabase auth redirect flows
 app.get("/auth/callback", async (c) => {
   const url = new URL(c.req.url);
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
   const code = url.searchParams.get("code");
+  const accessToken = url.searchParams.get("access_token");
+  const refreshToken = url.searchParams.get("refresh_token");
   const client = createRequestClient(c);
 
   // PKCE flow: exchange code for session
   if (code) {
     const { error } = await client.auth.exchangeCodeForSession(code);
     if (!error) return c.redirect("/dashboard");
+    console.error("PKCE exchange failed:", error.message);
   }
 
   // Token hash flow (email OTP verification)
@@ -374,9 +377,20 @@ app.get("/auth/callback", async (c) => {
       type: type as any,
     });
     if (!error) return c.redirect("/dashboard");
+    console.error("OTP verify failed:", error.message);
   }
 
-  // Fallback for hash-fragment redirect (implicit flow)
+  // Implicit flow: access_token + refresh_token forwarded from hash fragment
+  if (accessToken && refreshToken) {
+    const { error } = await client.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (!error) return c.redirect("/dashboard");
+    console.error("setSession failed:", error.message);
+  }
+
+  // First load: hash fragment is client-side only, forward to server as query params
   return c.html(`<!DOCTYPE html>
 <html><head><title>Logging in...</title></head>
 <body>
