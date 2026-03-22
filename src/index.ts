@@ -204,7 +204,7 @@ app.post("/api/proposals", async (c) => {
     return c.json({ error: "Client name too long (max 100 chars)" }, 400);
   if (typeof file_url !== "string" || file_url.length > 2000)
     return c.json({ error: "File URL too long (max 2000 chars)" }, 400);
-  if (!file_url.startsWith("https://"))
+  if (!file_url.startsWith("https://") && !file_url.startsWith("uploads/"))
     return c.json({ error: "File URL must start with https://" }, 400);
 
   // Validate email if provided
@@ -258,6 +258,18 @@ app.get("/api/proposals/:id", async (c) => {
   const proposal = await getProposal(id);
   if (!proposal) return c.json({ error: "Not found" }, 404);
 
+  let fileUrl: string | null = null;
+  if (proposal.paid === true) {
+    if (proposal.file_url.startsWith("uploads/")) {
+      const { data } = await supabase.storage
+        .from("proposal-files")
+        .createSignedUrl(proposal.file_url, 30 * 24 * 3600); // 30 days
+      fileUrl = data?.signedUrl ?? null;
+    } else {
+      fileUrl = proposal.file_url;
+    }
+  }
+
   return c.json({
     id: proposal.id,
     title: proposal.title,
@@ -266,7 +278,7 @@ app.get("/api/proposals/:id", async (c) => {
     ls_checkout_url: proposal.ls_checkout_url,
     paid: proposal.paid === true,
     paid_at: proposal.paid_at,
-    file_url: proposal.paid === true ? proposal.file_url : null,
+    file_url: fileUrl,
   });
 });
 
@@ -411,6 +423,50 @@ app.get("/auth/logout", async (c) => {
   const client = createRequestClient(c);
   await client.auth.signOut();
   return c.redirect("/");
+});
+
+// POST /api/upload -- upload file to Supabase Storage (30-day signed URL on retrieval)
+app.post("/api/upload", async (c) => {
+  const ip = c.req.header("x-forwarded-for") || "unknown";
+  if (!checkRateLimit(ip, 5)) {
+    return c.json({ error: "Too many requests. Try again in a minute." }, 429);
+  }
+
+  const formData = await c.req.formData().catch(() => null);
+  if (!formData) return c.json({ error: "Invalid form data" }, 400);
+
+  const file = formData.get("file") as File | null;
+  if (!file) return c.json({ error: "No file provided" }, 400);
+
+  if (file.size > 50 * 1024 * 1024)
+    return c.json({ error: "File too large (max 50MB)" }, 400);
+
+  const ALLOWED_TYPES = [
+    "application/pdf",
+    "image/jpeg", "image/png", "image/gif", "image/webp",
+    "application/zip", "application/x-zip-compressed",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
+  ];
+  if (!ALLOWED_TYPES.includes(file.type))
+    return c.json({ error: "File type not allowed" }, 400);
+
+  const safeName = file.name.replace(/[^a-z0-9._-]/gi, "_").substring(0, 200);
+  const path = `uploads/${crypto.randomUUID().replace(/-/g, "")}/${safeName}`;
+
+  const buffer = await file.arrayBuffer();
+  const { error } = await supabase.storage
+    .from("proposal-files")
+    .upload(path, buffer, { contentType: file.type, upsert: false });
+
+  if (error) {
+    console.error("Storage upload error:", error.message);
+    return c.json({ error: "Upload failed" }, 500);
+  }
+
+  return c.json({ path });
 });
 
 // ─── HTML Pages ──────────────────────────────────────────────────────────────
@@ -758,9 +814,30 @@ function landingPage(loggedIn = false): string {
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-warm-700 mb-1.5">Your file URL <span class="text-warm-500 font-normal">(Google Drive or Dropbox shareable link)</span></label>
-          <input type="url" name="file_url" required placeholder="https://drive.google.com/file/d/..."
-            class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
+          <label class="block text-sm font-medium text-warm-700 mb-1.5">Your deliverable</label>
+          <div class="flex rounded-xl border border-warm-200 overflow-hidden mb-2 bg-warm-50">
+            <button type="button" id="modeUrl" onclick="setFileMode('url')"
+              class="flex-1 py-2 text-sm font-medium transition bg-white text-accent-600 border-r border-warm-200">
+              Link (Google Drive / Dropbox)
+            </button>
+            <button type="button" id="modeUpload" onclick="setFileMode('upload')"
+              class="flex-1 py-2 text-sm font-medium transition text-warm-500">
+              Upload file (30-day hosting)
+            </button>
+          </div>
+          <div id="urlInput">
+            <input type="url" name="file_url" placeholder="https://drive.google.com/file/d/..."
+              class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
+          </div>
+          <div id="uploadInput" class="hidden">
+            <input type="file" id="fileUpload" accept=".pdf,.zip,.png,.jpg,.jpeg,.webp,.docx,.xlsx,.pptx,.txt"
+              class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-accent-50 file:text-accent-700 focus:outline-none cursor-pointer" />
+            <p class="text-xs text-warm-400 mt-1">PDF, ZIP, images, Office docs — max 50MB. Stored securely for 30 days after upload.</p>
+            <div id="uploadProgress" class="hidden mt-2 text-xs text-warm-500 flex items-center gap-1.5">
+              <i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i>
+              Uploading...
+            </div>
+          </div>
         </div>
         <div>
           <label class="block text-sm font-medium text-warm-700 mb-1.5">Price (USD)</label>
@@ -818,8 +895,8 @@ function landingPage(loggedIn = false): string {
         <div class="w-10 h-10 bg-accent-50 rounded-lg flex items-center justify-center mx-auto mb-3">
           <i data-lucide="lock" class="w-5 h-5 text-accent-600"></i>
         </div>
-        <p class="font-medium text-warm-800 text-sm mb-1">No file hosting</p>
-        <p class="text-warm-500 text-xs">Your files stay on Google Drive or Dropbox. We never store or transfer your files.</p>
+        <p class="font-medium text-warm-800 text-sm mb-1">Flexible delivery</p>
+        <p class="text-warm-500 text-xs">Link to Google Drive or Dropbox, or upload files directly for 30-day secure hosting.</p>
       </div>
     </div>
   </section>
@@ -866,8 +943,12 @@ function landingPage(loggedIn = false): string {
         <p class="text-warm-500 text-sm leading-relaxed">Log in with your email to access your dashboard. You will see all your proposals, payment status, and total revenue at a glance.</p>
       </div>
       <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
+        <p class="font-medium text-warm-800 mb-2">Can I upload files directly instead of linking?</p>
+        <p class="text-warm-500 text-sm leading-relaxed">Yes. Toggle to "Upload file" when creating a proposal. Files up to 50MB are stored securely in Supabase Storage. After payment, your client gets a signed download link valid for 30 days.</p>
+      </div>
+      <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
         <p class="font-medium text-warm-800 mb-2">Is my data secure?</p>
-        <p class="text-warm-500 text-sm leading-relaxed">Yes. We use HMAC-SHA256 webhook verification, encrypted database connections, and never store your actual files. Payments are processed securely through LemonSqueezy.</p>
+        <p class="text-warm-500 text-sm leading-relaxed">Yes. We use HMAC-SHA256 webhook verification, encrypted database connections, and Supabase Storage with signed URLs that expire after 30 days. Payments are processed securely through LemonSqueezy.</p>
       </div>
     </div>
   </section>
@@ -876,6 +957,22 @@ function landingPage(loggedIn = false): string {
 
   <script>
     lucide.createIcons();
+
+    let fileMode = 'url';
+    function setFileMode(mode) {
+      fileMode = mode;
+      document.getElementById('urlInput').classList.toggle('hidden', mode !== 'url');
+      document.getElementById('uploadInput').classList.toggle('hidden', mode !== 'upload');
+      document.getElementById('modeUrl').classList.toggle('bg-white', mode === 'url');
+      document.getElementById('modeUrl').classList.toggle('text-accent-600', mode === 'url');
+      document.getElementById('modeUrl').classList.toggle('text-warm-500', mode !== 'url');
+      document.getElementById('modeUpload').classList.toggle('bg-white', mode === 'upload');
+      document.getElementById('modeUpload').classList.toggle('text-accent-600', mode === 'upload');
+      document.getElementById('modeUpload').classList.toggle('text-warm-500', mode !== 'upload');
+      // Toggle required on URL input
+      const urlField = document.querySelector('#urlInput input');
+      urlField.required = (mode === 'url');
+    }
 
     const form = document.getElementById('proposalForm');
     const submitBtn = document.getElementById('submitBtn');
@@ -889,7 +986,43 @@ function landingPage(loggedIn = false): string {
       submitBtn.innerHTML = '<span>Creating...</span>';
       formError.classList.add('hidden');
 
-      const data = Object.fromEntries(new FormData(form));
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData);
+
+      // Handle file upload mode
+      if (fileMode === 'upload') {
+        const fileInput = document.getElementById('fileUpload');
+        const file = fileInput.files[0];
+        if (!file) {
+          formError.textContent = 'Please select a file to upload.';
+          formError.classList.remove('hidden');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Create Proposal <i data-lucide="arrow-right" class="w-4 h-4 inline"></i>';
+          lucide.createIcons();
+          return;
+        }
+        try {
+          document.getElementById('uploadProgress').classList.remove('hidden');
+          submitBtn.innerHTML = '<span>Uploading file...</span>';
+          const uploadForm = new FormData();
+          uploadForm.append('file', file);
+          const uploadRes = await fetch('/api/upload', { method: 'POST', body: uploadForm });
+          const uploadJson = await uploadRes.json();
+          if (!uploadRes.ok) throw new Error(uploadJson.error || 'Upload failed');
+          data.file_url = uploadJson.path;
+          document.getElementById('uploadProgress').classList.add('hidden');
+          submitBtn.innerHTML = '<span>Creating...</span>';
+        } catch (err) {
+          document.getElementById('uploadProgress').classList.add('hidden');
+          formError.textContent = err.message;
+          formError.classList.remove('hidden');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Create Proposal <i data-lucide="arrow-right" class="w-4 h-4 inline"></i>';
+          lucide.createIcons();
+          return;
+        }
+      }
+
       try {
         const res = await fetch('/api/proposals', {
           method: 'POST',
@@ -1257,6 +1390,21 @@ function termsPage(loggedIn = false): string {
 }
 
 // ─── Start Server ────────────────────────────────────────────────────────────
+
+// Ensure Supabase Storage bucket exists
+async function ensureStorageBucket() {
+  const { data: buckets } = await supabase.storage.listBuckets();
+  const exists = buckets?.some((b) => b.name === "proposal-files");
+  if (!exists) {
+    const { error } = await supabase.storage.createBucket("proposal-files", {
+      public: false,
+      fileSizeLimit: 50 * 1024 * 1024,
+    });
+    if (error) console.error("Failed to create storage bucket:", error.message);
+    else console.log("Created proposal-files storage bucket");
+  }
+}
+ensureStorageBucket().catch((e) => console.error("Storage init error:", e));
 
 const port = parseInt(process.env.PORT || "3000");
 console.log(`ProposalLock running on http://localhost:${port}`);
