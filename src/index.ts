@@ -112,7 +112,19 @@ async function getSessionUser(
 }
 
 // Shared Tailwind config block
+const ogMeta = `
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://proposallock.onrender.com">
+  <meta property="og:title" content="ProposalLock -- Your files unlock the moment they pay">
+  <meta property="og:description" content="Create a proposal link. Attach your deliverables. Get paid before they download. $29 once.">
+  <meta property="og:image" content="https://proposallock.onrender.com/assets/banner.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ProposalLock">
+  <meta name="twitter:description" content="Payment-gated file delivery for freelancers. $29 once.">`;
+
 const tailwindConfig = `
+  ${ogMeta}
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script>
@@ -144,16 +156,16 @@ const tailwindConfig = `
 // Shared nav HTML
 function navHtml(loggedIn = false): string {
   return `
-  <nav class="max-w-3xl mx-auto px-6 py-6 flex items-center justify-between">
-    <a href="/" class="flex items-center gap-2">
-      <div class="w-8 h-8 accent-gradient rounded-lg flex items-center justify-center">
+  <nav class="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-4">
+    <a href="/" class="flex items-center gap-2 flex-shrink-0" aria-label="ProposalLock home">
+      <div class="w-8 h-8 accent-gradient rounded-lg flex items-center justify-center" aria-hidden="true">
         <i data-lucide="lock" class="w-4 h-4 text-white"></i>
       </div>
       <span class="font-semibold text-warm-900 text-lg tracking-tight">ProposalLock</span>
     </a>
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-2 sm:gap-4 flex-wrap justify-end">
       ${loggedIn ? '<a href="/dashboard" class="text-sm font-medium text-accent-600 hover:text-accent-700 transition">Dashboard</a>' : ""}
-      <a href="#create" class="text-sm font-medium text-accent-600 hover:text-accent-700 transition">Create a proposal</a>
+      <a href="#create" class="text-sm font-medium text-accent-600 hover:text-accent-700 transition hidden sm:inline">Create a proposal</a>
       ${loggedIn ? '<a href="/auth/logout" class="text-sm text-warm-500 hover:text-warm-700 transition">Log out</a>' : '<a href="/login" class="text-sm text-warm-500 hover:text-warm-700 transition">Log in</a>'}
     </div>
   </nav>`;
@@ -162,7 +174,7 @@ function navHtml(loggedIn = false): string {
 // Shared footer HTML
 function footerHtml(): string {
   return `
-  <footer class="max-w-2xl mx-auto px-6 py-10 border-t border-warm-200 text-center">
+  <footer class="max-w-2xl mx-auto px-4 sm:px-6 py-10 border-t border-warm-200 text-center">
     <div class="flex items-center justify-center gap-2 mb-3">
       <div class="w-6 h-6 accent-gradient rounded-md flex items-center justify-center">
         <i data-lucide="lock" class="w-3 h-3 text-white"></i>
@@ -404,7 +416,7 @@ app.get("/auth/callback", async (c) => {
 
   // First load: hash fragment is client-side only, forward to server as query params
   return c.html(`<!DOCTYPE html>
-<html><head><title>Logging in...</title></head>
+<html><head><title>Logging in...</title><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"></head>
 <body>
   <p>Completing login...</p>
   <script>
@@ -656,20 +668,20 @@ function dashboardPage(
 <body class="bg-warm-50 text-warm-900 min-h-screen antialiased">
   ${navHtml(true)}
 
-  <main class="max-w-4xl mx-auto px-6 py-10">
-    <div class="flex items-center justify-between mb-8">
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
       <div>
         <h1 class="text-2xl font-bold text-warm-950 tracking-tight">Dashboard</h1>
         <p class="text-warm-500 text-sm">${escapeHtml(email)}</p>
       </div>
-      <a href="#create" class="inline-flex items-center gap-2 accent-gradient hover:opacity-90 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm shadow-lg shadow-accent-500/20">
-        <i data-lucide="plus" class="w-4 h-4"></i>
+      <a href="#create" class="inline-flex items-center justify-center gap-2 accent-gradient hover:opacity-90 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm shadow-lg shadow-accent-500/20">
+        <i data-lucide="plus" class="w-4 h-4" aria-hidden="true"></i>
         New Proposal
       </a>
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-3 gap-4 mb-8">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
       <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
         <p class="text-xs text-warm-500 uppercase tracking-wider mb-1">Total Revenue</p>
         <p class="text-2xl font-bold text-warm-950">${revenueFormatted}</p>
@@ -688,8 +700,8 @@ function dashboardPage(
     ${
       proposals.length > 0
         ? `
-    <div class="bg-white border border-warm-200 rounded-2xl shadow-sm overflow-hidden">
-      <table class="w-full">
+    <div class="bg-white border border-warm-200 rounded-2xl shadow-sm overflow-x-auto">
+      <table class="w-full min-w-[600px]">
         <thead>
           <tr class="bg-warm-50 border-b border-warm-200">
             <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Project</th>
@@ -734,9 +746,9 @@ function landingPage(loggedIn = false): string {
   ${navHtml(loggedIn)}
 
   <!-- Hero -->
-  <section class="max-w-2xl mx-auto px-6 pt-16 pb-20 text-center">
+  <section class="max-w-2xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-16 sm:pb-20 text-center">
     <div class="inline-flex items-center gap-2 bg-accent-50 border border-accent-200 rounded-full px-4 py-1.5 text-sm text-accent-700 mb-8">
-      <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+      <i data-lucide="sparkles" class="w-3.5 h-3.5" aria-hidden="true"></i>
       No subscription. $29 once. Yours forever.
     </div>
     <h1 class="text-4xl sm:text-5xl font-bold leading-[1.15] tracking-tight mb-6 text-warm-950">
@@ -753,7 +765,7 @@ function landingPage(loggedIn = false): string {
   </section>
 
   <!-- Pain Points -->
-  <section class="max-w-2xl mx-auto px-6 py-16">
+  <section class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Sound familiar?</h2>
     <div class="space-y-4">
       <div class="border-l-2 border-accent-300 pl-5 py-2">
@@ -770,7 +782,7 @@ function landingPage(loggedIn = false): string {
   </section>
 
   <!-- How It Works -->
-  <section class="max-w-2xl mx-auto px-6 py-16">
+  <section class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-10 text-center">How it works</h2>
     <div class="grid sm:grid-cols-3 gap-8">
       <div class="text-center">
@@ -792,58 +804,58 @@ function landingPage(loggedIn = false): string {
   </section>
 
   <!-- Proposal Creator Form -->
-  <section id="create" class="max-w-2xl mx-auto px-6 py-16">
-    <div class="bg-white border border-warm-200 rounded-2xl p-8 shadow-sm">
+  <section id="create" class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <div class="bg-white border border-warm-200 rounded-2xl p-5 sm:p-8 shadow-sm">
       <h2 class="text-xl font-semibold text-warm-900 mb-1">Create a proposal</h2>
       <p class="text-sm text-warm-500 mb-8">Free to try. Sell up to $29 worth of work, then unlock unlimited with ProposalLock.</p>
 
       <form id="proposalForm" class="space-y-5">
         <div>
-          <label class="block text-sm font-medium text-warm-700 mb-1.5">Your email <span class="text-warm-400 font-normal">(for payment notifications)</span></label>
-          <input type="email" name="email" placeholder="you@example.com"
+          <label for="proposal-email" class="block text-sm font-medium text-warm-700 mb-1.5">Your email <span class="text-warm-400 font-normal">(for payment notifications)</span></label>
+          <input type="email" id="proposal-email" name="email" placeholder="you@example.com"
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-warm-700 mb-1.5">Project title</label>
-          <input type="text" name="title" required placeholder="Brand redesign -- Acme Corp"
+          <label for="proposal-title" class="block text-sm font-medium text-warm-700 mb-1.5">Project title</label>
+          <input type="text" id="proposal-title" name="title" required placeholder="Brand redesign -- Acme Corp"
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-warm-700 mb-1.5">Client name</label>
-          <input type="text" name="client_name" required placeholder="Jane Smith"
+          <label for="proposal-client" class="block text-sm font-medium text-warm-700 mb-1.5">Client name</label>
+          <input type="text" id="proposal-client" name="client_name" required placeholder="Jane Smith"
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-warm-700 mb-1.5">Your deliverable</label>
-          <div class="flex rounded-xl border border-warm-200 overflow-hidden mb-2 bg-warm-50">
-            <button type="button" id="modeUrl" onclick="setFileMode('url')"
+          <label class="block text-sm font-medium text-warm-700 mb-1.5" id="deliverable-label">Your deliverable</label>
+          <div class="flex rounded-xl border border-warm-200 overflow-hidden mb-2 bg-warm-50" role="group" aria-label="File delivery method">
+            <button type="button" id="modeUrl" onclick="setFileMode('url')" aria-pressed="true"
               class="flex-1 py-2 text-sm font-medium transition bg-white text-accent-600 border-r border-warm-200">
               Link (Google Drive / Dropbox)
             </button>
-            <button type="button" id="modeUpload" onclick="setFileMode('upload')"
+            <button type="button" id="modeUpload" onclick="setFileMode('upload')" aria-pressed="false"
               class="flex-1 py-2 text-sm font-medium transition text-warm-500">
               Upload file (30-day hosting)
             </button>
           </div>
           <div id="urlInput">
-            <input type="url" name="file_url" placeholder="https://drive.google.com/file/d/..."
+            <input type="url" name="file_url" placeholder="https://drive.google.com/file/d/..." aria-labelledby="deliverable-label"
               class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
           </div>
           <div id="uploadInput" class="hidden">
-            <input type="file" id="fileUpload" accept=".pdf,.zip,.png,.jpg,.jpeg,.webp,.docx,.xlsx,.pptx,.txt"
+            <input type="file" id="fileUpload" accept=".pdf,.zip,.png,.jpg,.jpeg,.webp,.docx,.xlsx,.pptx,.txt" aria-label="Upload deliverable file"
               class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-accent-50 file:text-accent-700 focus:outline-none cursor-pointer" />
-            <p class="text-xs text-warm-400 mt-1">PDF, ZIP, images, Office docs — max 50MB. Stored securely for 30 days after upload.</p>
-            <div id="uploadProgress" class="hidden mt-2 text-xs text-warm-500 flex items-center gap-1.5">
-              <i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i>
+            <p class="text-xs text-warm-400 mt-1">PDF, ZIP, images, Office docs -- max 50MB. Stored securely for 30 days after upload.</p>
+            <div id="uploadProgress" class="hidden mt-2 text-xs text-warm-500 flex items-center gap-1.5" role="status" aria-live="polite">
+              <i data-lucide="loader-2" class="w-3 h-3 animate-spin" aria-hidden="true"></i>
               Uploading...
             </div>
           </div>
         </div>
         <div>
-          <label class="block text-sm font-medium text-warm-700 mb-1.5">Price (USD)</label>
+          <label for="proposal-price" class="block text-sm font-medium text-warm-700 mb-1.5">Price (USD)</label>
           <div class="relative">
-            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-warm-500 font-medium">$</span>
-            <input type="number" name="price" required min="1" step="0.01" placeholder="500"
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-warm-500 font-medium" aria-hidden="true">$</span>
+            <input type="number" id="proposal-price" name="price" required min="1" step="0.01" placeholder="500"
               class="w-full bg-warm-50 border border-warm-200 rounded-xl pl-8 pr-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
           </div>
         </div>
@@ -852,7 +864,7 @@ function landingPage(loggedIn = false): string {
           Create Proposal
           <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </button>
-        <div id="formError" class="hidden text-red-500 text-sm text-center"></div>
+        <div id="formError" class="hidden text-red-500 text-sm text-center" role="alert" aria-live="assertive"></div>
       </form>
 
       <div id="proposalResult" class="hidden mt-6 bg-green-50 border border-green-200 rounded-xl p-5">
@@ -864,8 +876,8 @@ function landingPage(loggedIn = false): string {
         <div class="flex gap-2">
           <input id="proposalUrl" readonly
             class="flex-1 bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800" />
-          <button onclick="copyUrl()" class="bg-warm-100 hover:bg-warm-200 text-warm-700 text-sm px-4 py-2 rounded-lg transition font-medium flex items-center gap-1.5">
-            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <button onclick="copyUrl()" aria-label="Copy proposal URL" class="bg-warm-100 hover:bg-warm-200 text-warm-700 text-sm px-4 py-2 rounded-lg transition font-medium flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-accent-500/20">
+            <i data-lucide="copy" class="w-3.5 h-3.5" aria-hidden="true"></i>
             Copy
           </button>
         </div>
@@ -874,7 +886,7 @@ function landingPage(loggedIn = false): string {
   </section>
 
   <!-- Security -->
-  <section class="max-w-2xl mx-auto px-6 py-16">
+  <section class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Security you can trust</h2>
     <div class="grid sm:grid-cols-3 gap-6">
       <div class="bg-white border border-warm-200 rounded-xl p-5 text-center shadow-sm">
@@ -902,9 +914,9 @@ function landingPage(loggedIn = false): string {
   </section>
 
   <!-- Pricing -->
-  <section class="max-w-2xl mx-auto px-6 py-16">
+  <section class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Simple pricing</h2>
-    <div class="bg-white border border-warm-200 rounded-2xl p-8 max-w-sm mx-auto text-center shadow-sm">
+    <div class="bg-white border border-warm-200 rounded-2xl p-6 sm:p-8 max-w-sm mx-auto text-center shadow-sm">
       <div class="text-5xl font-bold text-warm-950 mb-1 tracking-tight">$29</div>
       <div class="text-warm-500 text-sm mb-8">one-time -- no subscription -- lifetime access</div>
       <ul class="text-left space-y-3 text-warm-700 text-sm mb-8">
@@ -923,7 +935,7 @@ function landingPage(loggedIn = false): string {
   </section>
 
   <!-- FAQ -->
-  <section class="max-w-2xl mx-auto px-6 py-16">
+  <section class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Frequently asked questions</h2>
     <div class="space-y-6">
       <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
@@ -1047,14 +1059,24 @@ function landingPage(loggedIn = false): string {
       }
     });
 
-    function copyUrl() {
-      proposalUrlInput.select();
-      document.execCommand('copy');
+    async function copyUrl() {
+      const url = proposalUrlInput.value;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+        } else {
+          proposalUrlInput.select();
+          document.execCommand('copy');
+        }
+      } catch (err) {
+        proposalUrlInput.select();
+        document.execCommand('copy');
+      }
       const btn = event.target.closest('button');
-      btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> Copied!';
+      btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5" aria-hidden="true"></i> Copied!';
       lucide.createIcons();
       setTimeout(() => {
-        btn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy';
+        btn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5" aria-hidden="true"></i> Copy';
         lucide.createIcons();
       }, 2000);
     }
