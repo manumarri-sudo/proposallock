@@ -222,6 +222,7 @@ echo "--- 15. FILE UPLOAD (STORAGE) ---"
 # Create a small test file
 echo "test file content" > /tmp/proposallock_test_upload.txt
 upload_json=$(curl -s -X POST "$SITE/api/upload" \
+  -H "Origin: $SITE" \
   -F "file=@/tmp/proposallock_test_upload.txt;type=text/plain")
 UPLOAD_PATH=$(echo "$upload_json" | python3 -c "import sys,json; print(json.load(sys.stdin).get('path',''))" 2>/dev/null || echo "")
 if [ -n "$UPLOAD_PATH" ] && echo "$UPLOAD_PATH" | grep -q "^uploads/"; then
