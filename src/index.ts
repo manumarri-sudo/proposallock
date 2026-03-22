@@ -34,6 +34,31 @@ app.use("*", async (c, next) => {
 // Serve static files from public/
 app.use("/assets/*", serveStatic({ root: "./public" }));
 
+// ─── Analytics: lightweight page view tracking ───
+app.use("*", async (c, next) => {
+  await next();
+  // Fire-and-forget: only track GET requests to HTML pages (not API, assets, or non-200)
+  if (
+    c.req.method === "GET" &&
+    !c.req.path.startsWith("/api/") &&
+    !c.req.path.startsWith("/assets/") &&
+    c.res.status === 200
+  ) {
+    const url = new URL(c.req.url);
+    const path = url.pathname;
+    const referrer = c.req.header("Referer") || null;
+    const utm_source = url.searchParams.get("utm_source") || null;
+    const utm_medium = url.searchParams.get("utm_medium") || null;
+    const utm_campaign = url.searchParams.get("utm_campaign") || null;
+    supabase
+      .from("page_views")
+      .insert({ path, referrer, utm_source, utm_medium, utm_campaign })
+      .then(({ error }) => {
+        if (error) console.error("[Analytics] insert error:", error.message);
+      });
+  }
+});
+
 // ─── Security: HTML escaping ───
 function escapeHtml(s: string): string {
   return s
@@ -117,11 +142,11 @@ const ogMeta = `
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://proposallock.onrender.com">
   <meta property="og:title" content="ProposalLock -- Your files unlock the moment they pay">
-  <meta property="og:description" content="Create a proposal link. Attach your deliverables. Get paid before they download. $29 once.">
+  <meta property="og:description" content="Create a proposal link. Attach your deliverables. Get paid before they download. Free for freelancers.">
   <meta property="og:image" content="https://proposallock.onrender.com/assets/banner.svg">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="ProposalLock">
-  <meta name="twitter:description" content="Payment-gated file delivery for freelancers. $29 once.">`;
+  <meta name="twitter:description" content="Payment-gated file delivery for freelancers. Free to use.">`;
 
 const tailwindConfig = `
   ${ogMeta}
@@ -245,6 +270,7 @@ app.post("/api/proposals", async (c) => {
     successUrl,
   });
 
+  const isUpload = file_url.startsWith("uploads/");
   const proposal = await createProposal({
     id,
     title,
@@ -254,6 +280,8 @@ app.post("/api/proposals", async (c) => {
     ls_variant_id: checkout?.variantId ?? null,
     ls_checkout_url: checkout?.checkoutUrl ?? null,
     freelancer_email: freelancerEmail,
+    file_type: isUpload ? "upload" : "url",
+    storage_path: isUpload ? file_url : null,
   });
 
   return c.json({
@@ -272,10 +300,10 @@ app.get("/api/proposals/:id", async (c) => {
 
   let fileUrl: string | null = null;
   if (proposal.paid === true) {
-    if (proposal.file_url.startsWith("uploads/")) {
+    if (proposal.file_type === "upload" && proposal.storage_path) {
       const { data } = await supabase.storage
         .from("proposal-files")
-        .createSignedUrl(proposal.file_url, 30 * 24 * 3600); // 30 days
+        .createSignedUrl(proposal.storage_path, 30 * 24 * 3600); // 30 days
       fileUrl = data?.signedUrl ?? null;
     } else {
       fileUrl = proposal.file_url;
@@ -749,7 +777,7 @@ function landingPage(loggedIn = false): string {
   <section class="max-w-2xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-16 sm:pb-20 text-center">
     <div class="inline-flex items-center gap-2 bg-accent-50 border border-accent-200 rounded-full px-4 py-1.5 text-sm text-accent-700 mb-8">
       <i data-lucide="sparkles" class="w-3.5 h-3.5" aria-hidden="true"></i>
-      No subscription. $29 once. Yours forever.
+      Free for freelancers. No subscription. No hidden fees.
     </div>
     <h1 class="text-4xl sm:text-5xl font-bold leading-[1.15] tracking-tight mb-6 text-warm-950">
       Your files unlock<br />the moment they pay.
@@ -787,7 +815,7 @@ function landingPage(loggedIn = false): string {
     <div class="grid sm:grid-cols-3 gap-8">
       <div class="text-center">
         <p class="text-2xl font-bold text-accent-500 mb-2">1</p>
-        <p class="font-medium text-warm-800 mb-1 text-sm">Paste your file URL</p>
+        <p class="font-medium text-warm-800 mb-1 text-sm">Upload a file or paste a link</p>
         <p class="text-warm-600 text-sm">Set a price for access</p>
       </div>
       <div class="text-center">
@@ -807,7 +835,7 @@ function landingPage(loggedIn = false): string {
   <section id="create" class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <div class="bg-white border border-warm-200 rounded-2xl p-5 sm:p-8 shadow-sm">
       <h2 class="text-xl font-semibold text-warm-900 mb-1">Create a proposal</h2>
-      <p class="text-sm text-warm-500 mb-8">Free to try. Sell up to $29 worth of work, then unlock unlimited with ProposalLock.</p>
+      <p class="text-sm text-warm-500 mb-8">Always free. Create a proposal, set your price, and get paid before your client downloads.</p>
 
       <form id="proposalForm" class="space-y-5">
         <div>
@@ -913,27 +941,6 @@ function landingPage(loggedIn = false): string {
     </div>
   </section>
 
-  <!-- Pricing -->
-  <section class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-    <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Simple pricing</h2>
-    <div class="bg-white border border-warm-200 rounded-2xl p-6 sm:p-8 max-w-sm mx-auto text-center shadow-sm">
-      <div class="text-5xl font-bold text-warm-950 mb-1 tracking-tight">$29</div>
-      <div class="text-warm-500 text-sm mb-8">one-time -- no subscription -- lifetime access</div>
-      <ul class="text-left space-y-3 text-warm-700 text-sm mb-8">
-        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0" aria-hidden="true"></i> Unlimited proposals</li>
-        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0" aria-hidden="true"></i> Payment-gated file delivery</li>
-        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0" aria-hidden="true"></i> Auto-unlock on payment</li>
-        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0" aria-hidden="true"></i> Works with Google Drive & Dropbox</li>
-        <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-accent-500 flex-shrink-0" aria-hidden="true"></i> 30-day money-back guarantee</li>
-      </ul>
-      <a href="${process.env.LS_CHECKOUT_URL || "#create"}"
-        class="block w-full accent-gradient hover:opacity-90 text-white font-semibold py-3.5 rounded-xl transition shadow-lg shadow-accent-500/20">
-        Get ProposalLock -- $29
-      </a>
-      <p class="text-xs text-warm-500 mt-4">vs HoneyBook at $66/month = $792/year</p>
-    </div>
-  </section>
-
   <!-- FAQ -->
   <section class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Frequently asked questions</h2>
@@ -949,6 +956,10 @@ function landingPage(loggedIn = false): string {
       <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
         <p class="font-medium text-warm-800 mb-2">Can I change the price after sending?</p>
         <p class="text-warm-500 text-sm leading-relaxed">No. The price is locked when the proposal is created. This protects both you and your client. Create a new proposal if you need a different price.</p>
+      </div>
+      <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
+        <p class="font-medium text-warm-800 mb-2">Is ProposalLock really free?</p>
+        <p class="text-warm-500 text-sm leading-relaxed">Yes. Creating proposals is completely free for freelancers. When your client pays, LemonSqueezy processes the payment and takes a small transaction fee. You keep the rest -- no platform fee from ProposalLock.</p>
       </div>
       <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
         <p class="font-medium text-warm-800 mb-2">How do I track my proposals?</p>
@@ -1341,7 +1352,7 @@ function privacyPage(loggedIn = false): string {
       <p>Payments are processed by <strong>LemonSqueezy</strong> (Lemon Squeezy, LLC). We do not store credit card numbers, bank details, or payment credentials. LemonSqueezy's privacy policy governs payment data handling.</p>
 
       <h2 class="text-lg font-semibold text-warm-900 mt-8">4. File storage</h2>
-      <p>We do not host, store, or transfer your files. File URLs point to third-party services (Google Drive, Dropbox, etc.) that you control. We only store the URL reference.</p>
+      <p>If you paste a link, file URLs point to third-party services (Google Drive, Dropbox, etc.) that you control. We only store the URL reference. If you upload a file directly, it is stored securely in Supabase Storage. After payment, your client receives a signed download link that expires after 30 days.</p>
 
       <h2 class="text-lg font-semibold text-warm-900 mt-8">5. Data storage and security</h2>
       <p>Your data is stored in a PostgreSQL database hosted by <strong>Supabase</strong> with encryption at rest and in transit. Access is restricted via Row Level Security policies and service-role authentication.</p>
@@ -1386,13 +1397,13 @@ function termsPage(loggedIn = false): string {
 
       <h2 class="text-lg font-semibold text-warm-900 mt-8">3. Payments and refunds</h2>
       <ul class="list-disc list-inside space-y-1">
-        <li>ProposalLock product purchase: $29 one-time payment with a 30-day money-back guarantee.</li>
+        <li>ProposalLock is free for freelancers to create proposals.</li>
         <li>Client payments to freelancers: processed by LemonSqueezy. Refund disputes for client payments are handled between the freelancer and client.</li>
         <li>ProposalLock is not a party to transactions between freelancers and clients.</li>
       </ul>
 
       <h2 class="text-lg font-semibold text-warm-900 mt-8">4. Limitation of liability</h2>
-      <p>ProposalLock is provided "as is" without warranties of any kind. We are not liable for: lost revenue from failed payments, file access issues caused by third-party hosting services, or disputes between freelancers and clients. Our total liability is limited to the amount you paid for the product ($29).</p>
+      <p>ProposalLock is provided "as is" without warranties of any kind. We are not liable for: lost revenue from failed payments, file access issues caused by third-party hosting services, or disputes between freelancers and clients.</p>
 
       <h2 class="text-lg font-semibold text-warm-900 mt-8">5. File delivery disclaimer</h2>
       <p>ProposalLock gates access to URLs you provide. We do not verify, host, or guarantee the availability of linked files. Ensuring your file links work correctly and remain accessible is your responsibility.</p>
@@ -1412,6 +1423,53 @@ function termsPage(loggedIn = false): string {
 </body>
 </html>`;
 }
+
+// ─── 404 Page ────────────────────────────────────────────────────────────────
+function notFoundPage(): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Not Found -- ProposalLock</title>
+  ${tailwindConfig}
+</head>
+<body class="bg-warm-50 text-warm-800 min-h-screen flex flex-col">
+  ${navHtml()}
+  <main class="flex-1 flex items-center justify-center px-4">
+    <div class="text-center max-w-md">
+      <div class="w-16 h-16 accent-gradient rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <i data-lucide="file-question" class="w-8 h-8 text-white"></i>
+      </div>
+      <h1 class="text-3xl font-bold text-warm-900 mb-3">Page not found</h1>
+      <p class="text-warm-500 mb-8">The page you're looking for doesn't exist or has been moved.</p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <a href="/" class="inline-flex items-center gap-2 px-5 py-2.5 accent-gradient text-white font-medium rounded-lg hover:opacity-90 transition">
+          <i data-lucide="home" class="w-4 h-4"></i>
+          Back to home
+        </a>
+        <a href="/#create" class="inline-flex items-center gap-2 px-5 py-2.5 border border-warm-300 text-warm-700 font-medium rounded-lg hover:bg-warm-100 transition">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          Create a proposal
+        </a>
+      </div>
+    </div>
+  </main>
+  ${footerHtml()}
+  <script>lucide.createIcons();</script>
+</body>
+</html>`;
+}
+
+app.notFound((c) => {
+  return c.html(notFoundPage(), 404);
+});
+
+// ─── Error Handler ───────────────────────────────────────────────────────────
+app.onError((err, c) => {
+  console.error(`[Error] ${c.req.method} ${c.req.path}:`, err.message);
+  return c.json({ error: "Internal server error" }, 500);
+});
 
 // ─── Start Server ────────────────────────────────────────────────────────────
 

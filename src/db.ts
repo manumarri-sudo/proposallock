@@ -22,6 +22,8 @@ export interface Proposal {
   paid_at: string | null;
   created_at: string;
   freelancer_email: string | null;
+  file_type: "url" | "upload";
+  storage_path: string | null;
 }
 
 export async function createProposal(
@@ -38,6 +40,8 @@ export async function createProposal(
       ls_variant_id: data.ls_variant_id,
       ls_checkout_url: data.ls_checkout_url,
       freelancer_email: data.freelancer_email,
+      file_type: data.file_type || "url",
+      storage_path: data.storage_path || null,
     })
     .select()
     .single();
