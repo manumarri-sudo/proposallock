@@ -1148,7 +1148,7 @@ function landingPage(loggedIn = false): string {
       Create Your First Proposal Free
       <i data-lucide="arrow-right" class="w-4 h-4"></i>
     </a>
-    <p class="text-sm text-warm-500 mt-5">Works in 30 seconds.</p>
+    <p class="text-sm text-warm-500 mt-5">Works in 30 seconds. &middot; <a href="/p/40f976088b8b451ead213f130c87f166" target="_blank" class="text-accent-600 hover:underline font-medium">See what your client sees</a></p>
   </section>
 
   <!-- Pain Points -->
@@ -1885,11 +1885,14 @@ function successPage(id: string): string {
     <div id="error" class="hidden text-amber-600 text-sm" role="alert">
       Payment received! Files will unlock shortly. <a href="/p/${id}" class="underline font-medium hover:text-amber-700 transition">Return to proposal</a>
     </div>
-    <p class="mt-8">
-      <a href="${process.env.BASE_URL || "https://proposallock.vercel.app"}/?ref=success" class="text-xs text-warm-400 hover:text-accent-600 transition">
-        Powered by ProposalLock -- get paid before you deliver
+    <div class="mt-8 p-4 bg-accent-50 border border-accent-100 rounded-xl">
+      <p class="text-sm font-medium text-accent-800 mb-1">Are you a freelancer too?</p>
+      <p class="text-xs text-accent-700 mb-3">Create your own payment-gated proposal links. Free to use. No subscription.</p>
+      <a href="${process.env.BASE_URL || "https://proposallock.vercel.app"}/?ref=success" class="inline-flex items-center gap-1.5 text-xs font-semibold text-white accent-gradient px-4 py-2 rounded-lg transition hover:opacity-90">
+        Try ProposalLock free
+        <i data-lucide="arrow-right" class="w-3 h-3"></i>
       </a>
-    </p>
+    </div>
   </div>
 
   <script>
