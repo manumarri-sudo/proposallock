@@ -44,27 +44,35 @@ export interface Testimonial {
 export async function createProposal(
   data: Omit<Proposal, "paid" | "paid_at" | "created_at" | "reminder_count" | "reminder_sent_at">
 ): Promise<Proposal> {
-  const { data: row, error } = await supabase
-    .from("proposals")
-    .insert({
-      id: data.id,
-      title: data.title,
-      client_name: data.client_name,
-      file_url: data.file_url,
-      price_cents: data.price_cents,
-      ls_variant_id: data.ls_variant_id,
-      ls_checkout_url: data.ls_checkout_url,
-      freelancer_email: data.freelancer_email,
-      file_type: data.file_type || "url",
-      storage_path: data.storage_path || null,
-      client_email: data.client_email ?? null,
-      description: data.description ?? null,
-    })
-    .select()
-    .single();
+  const coreFields = {
+    id: data.id,
+    title: data.title,
+    client_name: data.client_name,
+    file_url: data.file_url,
+    price_cents: data.price_cents,
+    ls_variant_id: data.ls_variant_id,
+    ls_checkout_url: data.ls_checkout_url,
+    freelancer_email: data.freelancer_email,
+    file_type: data.file_type || "url",
+    storage_path: data.storage_path || null,
+  };
 
-  if (error) throw new Error(`Failed to create proposal: ${error.message}`);
-  return row as Proposal;
+  const fullFields = {
+    ...coreFields,
+    client_email: data.client_email ?? null,
+    description: data.description ?? null,
+  };
+
+  let result = await supabase.from("proposals").insert(fullFields).select().single();
+
+  // If columns don't exist yet (migration pending), retry with core fields only
+  if (result.error && result.error.code === "42703") {
+    console.warn("[db] Schema migration pending -- inserting without optional columns:", result.error.message);
+    result = await supabase.from("proposals").insert(coreFields).select().single();
+  }
+
+  if (result.error) throw new Error(`Failed to create proposal: ${result.error.message}`);
+  return result.data as Proposal;
 }
 
 export async function getProposal(id: string): Promise<Proposal | null> {
