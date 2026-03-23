@@ -66,8 +66,14 @@ export async function createProposal(
   let result = await supabase.from("proposals").insert(fullFields).select().single();
 
   // If columns don't exist yet (migration pending), retry with core fields only
-  if (result.error && result.error.code === "42703") {
-    console.warn("[db] Schema migration pending -- inserting without optional columns:", result.error.message);
+  // PostgREST schema cache errors return PGRST204, PostgreSQL column errors return 42703
+  const isColumnError = result.error && (
+    result.error.code === "42703" ||
+    result.error.code === "PGRST204" ||
+    (result.error.message && result.error.message.includes("schema cache"))
+  );
+  if (isColumnError) {
+    console.warn("[db] Schema migration pending -- inserting without optional columns:", result.error!.message);
     result = await supabase.from("proposals").insert(coreFields).select().single();
   }
 

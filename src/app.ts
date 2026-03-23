@@ -30,6 +30,12 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 
 const app = new Hono();
 
+// ─── Global error handler ───
+app.onError((err, c) => {
+  console.error(`[Error] ${c.req.method} ${c.req.path}:`, err.message);
+  return c.json({ error: "Internal server error" }, 500);
+});
+
 // ─── Security middleware ───
 app.use(secureHeaders());
 // CSRF on all mutating routes except webhooks (webhooks use HMAC)
