@@ -1,10 +1,11 @@
 import { serve } from "@hono/node-server";
-import { app } from "./app";
-import { initDb } from "./db";
+import { serveStatic } from "@hono/node-server/serve-static";
+import app from "./app";
 
-const PORT = parseInt(process.env.PORT || "3000");
+// Static file serving for local dev (Vercel serves public/ automatically)
+app.use("/assets/*", serveStatic({ root: "./public/assets", rewriteRequestPath: (path) => path.replace(/^\/assets/, "") }));
 
-initDb().then(() => {
-  serve({ fetch: app.fetch, port: PORT });
-  console.log(`🔒 ProposalLock running on http://localhost:${PORT}`);
-}).catch(console.error);
+const port = parseInt(process.env.PORT || "3000");
+console.log(`ProposalLock v1.1.0 running on http://localhost:${port}`);
+
+serve({ fetch: app.fetch, port });
