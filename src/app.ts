@@ -735,24 +735,30 @@ app.get("/p/:id", async (c) => {
   const id = c.req.param("id");
   if (!VALID_ID.test(id)) return c.text("Not found", 404);
 
-  // First-view notification: fire-and-forget, never delays response
-  getProposal(id).then(async (proposal) => {
-    if (!proposal || !proposal.freelancer_email || proposal.paid) return;
-    const { count } = await supabase
+  // Fetch proposal for OG tags + first-view notification (single DB call)
+  const proposal = await getProposal(id);
+
+  // First-view notification: fire-and-forget (uses already-fetched proposal)
+  if (proposal && proposal.freelancer_email && !proposal.paid) {
+    supabase
       .from("page_views")
       .select("*", { count: "exact", head: true })
-      .eq("path", `/p/${id}`);
-    if (count === 0) {
-      notifyFreelancerViewed({
-        freelancerEmail: proposal.freelancer_email,
-        title: proposal.title,
-        clientName: proposal.client_name,
-        proposalId: id,
-      }).catch((e) => console.error("[notify] view notification error:", e));
-    }
-  }).catch(() => {});
+      .eq("path", `/p/${id}`)
+      .then(({ count }) => {
+        if (count === 0) {
+          notifyFreelancerViewed({
+            freelancerEmail: proposal.freelancer_email!,
+            title: proposal.title,
+            clientName: proposal.client_name,
+            proposalId: id,
+          }).catch((e) => console.error("[notify] view notification error:", e));
+        }
+      })
+      .catch(() => {});
+  }
 
-  return c.html(proposalPage(id));
+  const meta = proposal ? { title: proposal.title, price_cents: proposal.price_cents } : undefined;
+  return c.html(proposalPage(id, meta));
 });
 
 // Success page
@@ -1568,13 +1574,27 @@ function landingPage(loggedIn = false): string {
 </html>`;
 }
 
-function proposalPage(id: string): string {
+function proposalPage(id: string, meta?: { title: string; price_cents: number }): string {
+  const safeTitle = meta ? escapeHtml(meta.title) : '';
+  const priceStr = meta ? `$${(meta.price_cents / 100).toFixed(0)}` : null;
+  const pageTitle = meta ? `${safeTitle} | ProposalLock` : 'ProposalLock -- Proposal';
+  const ogTitle = meta ? `${safeTitle} -- Unlock Files` : 'ProposalLock -- Payment-gated file delivery';
+  const ogDesc = meta && priceStr
+    ? `Pay ${priceStr} to unlock your deliverables. Secure payment via LemonSqueezy.`
+    : 'Payment-gated file delivery for freelancers. Pay to unlock your files.';
   return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ProposalLock -- Proposal</title>
+  <title>${pageTitle}</title>
+  <meta name="description" content="${ogDesc}" />
+  <meta property="og:title" content="${ogTitle}" />
+  <meta property="og:description" content="${ogDesc}" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="${ogTitle}" />
+  <meta name="twitter:description" content="${ogDesc}" />
   ${tailwindConfig}
 </head>
 <body class="bg-warm-50 text-warm-900 min-h-screen flex items-start justify-center pt-8 sm:pt-12 px-4 sm:px-6 antialiased">
