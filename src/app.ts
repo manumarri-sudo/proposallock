@@ -100,7 +100,8 @@ function createRequestClient(c: any) {
   return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
       getAll() {
-        return parseCookieHeader(c.req.header("Cookie") ?? "");
+        return parseCookieHeader(c.req.header("Cookie") ?? "")
+          .map(({ name, value }) => ({ name, value: value ?? "" }));
       },
       setAll(cookiesToSet: any[]) {
         cookiesToSet.forEach(({ name, value, options }: any) => {
