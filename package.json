@@ -1,18 +1,24 @@
 {
   "name": "proposallock",
-  "version": "1.1.0",
-  "type": "module",
+  "version": "1.0.0",
+  "description": "Send your proposal. Your files unlock the moment they pay.",
   "scripts": {
-    "dev": "node --env-file=.env --watch src/index.ts",
-    "start": "node src/index.ts"
-  },
-  "engines": {
-    "node": ">=22.6.0"
+    "dev": "bun --hot src/index.ts",
+    "start": "node -e \"require('./api/index.js')\"",
+    "build": "echo 'No build step needed'"
   },
   "dependencies": {
-    "@hono/node-server": "^1.12.0",
-    "@supabase/ssr": "^0.9.0",
+    "@hono/node-server": "^1.13.7",
     "@supabase/supabase-js": "^2.99.3",
     "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/bun": "latest",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
