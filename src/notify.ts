@@ -66,10 +66,11 @@ export async function notifyFreelancerPaid(params: {
     if (!res.ok) {
       const err = await res.text();
       console.error("Resend email failed:", err);
-    } else {
-      console.log(`Payment notification sent to ${params.freelancerEmail}`);
+      throw new Error(`Email notification failed: ${err}`);
     }
+    console.log(`Payment notification sent to ${params.freelancerEmail}`);
   } catch (e) {
     console.error("Email notification error:", e);
+    throw e;
   }
 }
