@@ -1305,6 +1305,11 @@ function landingPage(loggedIn = false): string {
           <i data-lucide="share-2" class="w-3.5 h-3.5" aria-hidden="true"></i>
           Share with client
         </button>
+        <button id="emailTplBtn" onclick="copyEmailTemplate()" class="mt-2 w-full bg-white border border-warm-200 hover:border-accent-300 hover:text-accent-600 text-warm-600 text-sm px-4 py-2.5 rounded-lg transition font-medium flex items-center justify-center gap-1.5">
+          <i data-lucide="mail" class="w-3.5 h-3.5" aria-hidden="true"></i>
+          Copy email to client
+        </button>
+        <p id="emailCopied" class="hidden text-xs text-green-600 text-center mt-1.5">Email template copied to clipboard!</p>
       </div>
     </div>
   </section>
@@ -1551,6 +1556,9 @@ function landingPage(loggedIn = false): string {
         }
 
         proposalUrlInput.value = json.proposal_url;
+        // Store for email template
+        window._proposalTitle = data.title || 'your project';
+        window._clientName = data.client_name || '';
         proposalResult.classList.remove('hidden');
         proposalResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         // Show share button on mobile devices that support Web Share API
@@ -1621,6 +1629,42 @@ function landingPage(loggedIn = false): string {
         btn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5" aria-hidden="true"></i> Copy';
         lucide.createIcons();
       }, 2000);
+    }
+
+    async function copyEmailTemplate() {
+      const url = proposalUrlInput.value;
+      const title = window._proposalTitle || 'your project';
+      const client = window._clientName ? ('Hi ' + window._clientName + ',') : 'Hi,';
+      const template = [
+        'Subject: Your proposal is ready -- ' + title,
+        '',
+        client,
+        '',
+        'Your proposal for ' + title + ' is ready to review. Click the link below to see the project summary and unlock your deliverables:',
+        '',
+        url,
+        '',
+        'Payment is one-time and your files unlock instantly once confirmed.',
+        '',
+        'Let me know if you have any questions.',
+      ].join('\\n');
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(template);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = template;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+      } catch (_) {}
+      const copied = document.getElementById('emailCopied');
+      if (copied) {
+        copied.classList.remove('hidden');
+        setTimeout(() => copied.classList.add('hidden'), 3000);
+      }
     }
 
     function applyTemplate(title, price, fileHint) {
