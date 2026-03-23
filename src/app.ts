@@ -18,6 +18,9 @@ import {
   getProposalsPendingTestimonialEmail,
   markTestimonialEmailSent,
   testimonialExistsForProposal,
+  createTemplate,
+  getTemplatesByEmail,
+  deleteTemplate,
 } from "./db";
 import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy";
 import { notifyFreelancerPaid, notifyFreelancerViewed, notifyClientReminder, sendTestimonialRequestEmail } from "./notify";
@@ -403,6 +406,52 @@ app.get("/api/testimonials/public", async (c) => {
   return c.json(testimonials);
 });
 
+// GET /api/templates -- list user's templates (auth required)
+app.get("/api/templates", async (c) => {
+  const user = await getSessionUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const templates = await getTemplatesByEmail(user.email);
+  return c.json(templates);
+});
+
+// POST /api/templates -- create template (auth required)
+app.post("/api/templates", async (c) => {
+  const user = await getSessionUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "Invalid JSON" }, 400);
+
+  const { title, default_price_cents, file_url, file_type } = body;
+  if (!title || typeof title !== "string" || title.trim().length === 0)
+    return c.json({ error: "title required" }, 400);
+  if (typeof default_price_cents !== "number" || default_price_cents < 100)
+    return c.json({ error: "default_price_cents must be >= 100" }, 400);
+  if (!file_url || typeof file_url !== "string")
+    return c.json({ error: "file_url required" }, 400);
+
+  const template = await createTemplate({
+    freelancer_email: user.email,
+    title: title.trim().substring(0, 200),
+    default_price_cents,
+    file_url: file_url.substring(0, 2000),
+    file_type: file_type === "upload" ? "upload" : "url",
+  });
+  return c.json(template, 201);
+});
+
+// DELETE /api/templates/:id -- delete template (auth required, IDOR guarded)
+app.delete("/api/templates/:id", async (c) => {
+  const user = await getSessionUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+  const id = c.req.param("id");
+  if (!VALID_ID.test(id)) return c.json({ error: "Not found" }, 404);
+
+  await deleteTemplate(id, user.email);
+  return c.json({ success: true });
+});
+
 // POST /api/webhooks/lemonsqueezy -- LS order_created event
 app.post("/api/webhooks/lemonsqueezy", async (c) => {
   const signature = c.req.header("x-signature") || "";
@@ -598,7 +647,10 @@ app.get("/dashboard", async (c) => {
   if (!user) {
     return c.redirect("/login");
   }
-  const proposals = await getProposalsByEmail(user.email);
+  const [proposals, templates] = await Promise.all([
+    getProposalsByEmail(user.email),
+    getTemplatesByEmail(user.email),
+  ]);
 
   // 48h testimonial check: fire-and-forget, never delays dashboard load
   getProposalsPendingTestimonialEmail(user.email).then(async (pending) => {
@@ -617,7 +669,7 @@ app.get("/dashboard", async (c) => {
     }
   }).catch((e) => console.error("[testimonial] 48h check error:", e));
 
-  return c.html(dashboardPage(user.email, proposals));
+  return c.html(dashboardPage(user.email, proposals, templates));
 });
 
 // Landing page
@@ -767,7 +819,14 @@ function dashboardPage(
     price_cents: number;
     paid: boolean;
     created_at: string;
-  }>
+  }>,
+  templates: Array<{
+    id: string;
+    title: string;
+    default_price_cents: number;
+    file_url: string;
+    file_type: string;
+  }> = []
 ): string {
   const rows = proposals
     .map((p) => {
@@ -881,6 +940,49 @@ function dashboardPage(
       <p class="text-warm-500 text-sm">Create your first proposal to get started.</p>
     </div>`
     }
+
+    <!-- My Templates Section -->
+    ${templates.length > 0 ? `
+    <div class="mt-8">
+      <h2 class="text-base font-semibold text-warm-900 mb-3 flex items-center gap-2">
+        <i data-lucide="bookmark" class="w-4 h-4 text-accent-500" aria-hidden="true"></i>
+        My Templates
+      </h2>
+      <div class="bg-white border border-warm-200 rounded-2xl shadow-sm overflow-x-auto">
+        <table class="w-full min-w-[500px]">
+          <thead>
+            <tr class="bg-warm-50 border-b border-warm-200">
+              <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Template</th>
+              <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Default Price</th>
+              <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
+              <th class="py-3 px-4"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${templates.map((t) => {
+              const price = (t.default_price_cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+              const baseUrl = process.env.BASE_URL || "https://proposallock.vercel.app";
+              const useUrl = `${baseUrl}/?title=${encodeURIComponent(t.title)}&price_cents=${t.default_price_cents}&file_url=${encodeURIComponent(t.file_url)}#create`;
+              return `
+            <tr class="border-b border-warm-100 hover:bg-warm-50 transition">
+              <td class="py-3 px-4 text-sm font-medium text-warm-800">${escapeHtml(t.title)}</td>
+              <td class="py-3 px-4 text-sm text-warm-600">${price}</td>
+              <td class="py-3 px-4 text-xs text-warm-400 uppercase tracking-wide">${escapeHtml(t.file_type)}</td>
+              <td class="py-3 px-4 flex gap-2 justify-end">
+                <a href="${useUrl}" class="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 bg-accent-50 hover:bg-accent-100 px-3 py-1.5 rounded-lg transition font-medium">
+                  <i data-lucide="play" class="w-3 h-3" aria-hidden="true"></i>
+                  Use
+                </a>
+                <button onclick="deleteTemplate('${escapeHtml(t.id)}', this)" aria-label="Delete template" class="inline-flex items-center gap-1 text-xs text-warm-400 hover:text-red-500 bg-warm-100 hover:bg-red-50 px-2 py-1.5 rounded-lg transition">
+                  <i data-lucide="trash-2" class="w-3 h-3" aria-hidden="true"></i>
+                </button>
+              </td>
+            </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>` : ""}
   </main>
 
   ${footerHtml()}
@@ -894,6 +996,24 @@ function dashboardPage(
         lucide.createIcons();
         setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-green-600', 'bg-green-50'); lucide.createIcons(); }, 2000);
       });
+    }
+    async function deleteTemplate(id, btn) {
+      if (!confirm('Delete this template?')) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/templates/' + id, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Failed');
+        btn.closest('tr').remove();
+        // Hide section header if no rows left
+        const tbody = document.querySelector('table:last-of-type tbody');
+        if (tbody && tbody.children.length === 0) {
+          const section = btn.closest('.mt-8');
+          if (section) section.remove();
+        }
+      } catch {
+        btn.disabled = false;
+        alert('Could not delete template. Please try again.');
+      }
     }
   </script>
 </body>
@@ -1038,6 +1158,10 @@ function landingPage(loggedIn = false): string {
               class="w-full bg-warm-50 border border-warm-200 rounded-xl pl-8 pr-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
           </div>
         </div>
+        <label class="flex items-center gap-2.5 cursor-pointer select-none">
+          <input type="checkbox" id="saveAsTemplate" name="save_as_template" class="w-4 h-4 rounded border-warm-300 accent-accent-500 cursor-pointer" />
+          <span class="text-sm text-warm-600">Save as template for future proposals</span>
+        </label>
         <button type="submit" id="submitBtn"
           class="w-full accent-gradient hover:opacity-90 disabled:opacity-50 text-white font-semibold px-6 py-3.5 rounded-xl transition shadow-lg shadow-accent-500/20 flex items-center justify-center gap-2">
           Create Proposal
@@ -1127,10 +1251,38 @@ function landingPage(loggedIn = false): string {
     </div>
   </section>
 
+  <!-- Testimonials (dynamic -- hidden until populated) -->
+  <section id="testimonials-section" class="hidden max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">What freelancers say</h2>
+    <div id="testimonials-list" class="space-y-4"></div>
+  </section>
+
   ${footerHtml()}
 
   <script>
     lucide.createIcons();
+
+    // Load testimonials dynamically
+    (async () => {
+      try {
+        const res = await fetch('/api/testimonials/public');
+        if (!res.ok) return;
+        const items = await res.json();
+        if (!Array.isArray(items) || items.length === 0) return;
+        const section = document.getElementById('testimonials-section');
+        const list = document.getElementById('testimonials-list');
+        items.forEach(t => {
+          const stars = t.rating ? '&#9733;'.repeat(t.rating) + '&#9734;'.repeat(5 - t.rating) : '';
+          const name = t.display_name || 'A freelance professional';
+          list.innerHTML += \`<div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
+            \${stars ? \`<p class="text-accent-500 text-sm mb-2" aria-label="\${t.rating} out of 5 stars">\${stars}</p>\` : ''}
+            <p class="text-warm-700 leading-relaxed mb-3">"\${t.body}"</p>
+            <p class="text-xs text-warm-400 font-medium">-- \${name}</p>
+          </div>\`;
+        });
+        section.classList.remove('hidden');
+      } catch (_) {}
+    })();
 
     let fileMode = 'url';
     function setFileMode(mode) {
@@ -1208,6 +1360,22 @@ function landingPage(loggedIn = false): string {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Something went wrong');
 
+        // Save as template (fire-and-forget, never blocks proposal creation)
+        const saveAsTemplate = document.getElementById('saveAsTemplate').checked;
+        if (saveAsTemplate && data.email && fileMode === 'url' && data.file_url) {
+          const priceCents = Math.round(parseFloat(data.price || '0') * 100);
+          fetch('/api/templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: data.title,
+              default_price_cents: priceCents,
+              file_url: data.file_url,
+              file_type: 'url',
+            }),
+          }).catch(() => {}); // Silently ignore if not authenticated
+        }
+
         proposalUrlInput.value = json.proposal_url;
         proposalResult.classList.remove('hidden');
         proposalResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1222,6 +1390,28 @@ function landingPage(loggedIn = false): string {
         lucide.createIcons();
       }
     });
+
+    // Pre-fill form from URL params (e.g. from "Use template" button in dashboard)
+    (function prefillFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const title = params.get('title');
+      const priceCents = params.get('price_cents');
+      const fileUrl = params.get('file_url');
+      if (title) document.getElementById('proposal-title').value = title;
+      if (priceCents) document.getElementById('proposal-price').value = (parseInt(priceCents, 10) / 100).toFixed(2);
+      if (fileUrl) {
+        const urlField = document.querySelector('#urlInput input');
+        if (urlField) urlField.value = fileUrl;
+      }
+      if (title || priceCents || fileUrl) {
+        // Clean URL without reloading
+        const url = new URL(window.location.href);
+        url.searchParams.delete('title');
+        url.searchParams.delete('price_cents');
+        url.searchParams.delete('file_url');
+        window.history.replaceState({}, '', url.toString());
+      }
+    })();
 
     async function copyUrl() {
       const url = proposalUrlInput.value;
