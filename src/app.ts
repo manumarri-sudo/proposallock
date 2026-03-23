@@ -1362,6 +1362,10 @@ function landingPage(loggedIn = false): string {
           <i data-lucide="eye" class="w-3.5 h-3.5" aria-hidden="true"></i>
           Preview your client's view
         </a>
+        <a id="tweetBtn" href="#" target="_blank" rel="noopener noreferrer" class="mt-2 w-full bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white text-sm px-4 py-2.5 rounded-lg transition font-medium flex items-center justify-center gap-1.5">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.264 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          Share that you ship without chasing
+        </a>
       </div>
     </div>
   </section>
@@ -1611,6 +1615,12 @@ function landingPage(loggedIn = false): string {
         // Wire preview link
         const previewLink = document.getElementById('previewLink');
         if (previewLink) previewLink.href = json.proposal_url;
+        // Wire tweet button
+        const tweetBtn = document.getElementById('tweetBtn');
+        if (tweetBtn) {
+          const tweetText = encodeURIComponent('Just set up payment-gated file delivery for a client proposal. Files unlock the moment they pay -- no more chasing invoices. Free at proposallock.vercel.app');
+          tweetBtn.href = 'https://twitter.com/intent/tweet?text=' + tweetText;
+        }
         // Store for email template
         window._proposalTitle = data.title || 'your project';
         window._clientName = data.client_name || '';
