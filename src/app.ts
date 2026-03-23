@@ -1312,6 +1312,10 @@ function landingPage(loggedIn = false): string {
           Copy email to client
         </button>
         <p id="emailCopied" class="hidden text-xs text-green-600 text-center mt-1.5">Email template copied to clipboard!</p>
+        <a id="previewLink" href="#" target="_blank" class="mt-2 w-full bg-warm-50 border border-warm-200 hover:border-accent-300 hover:text-accent-600 text-warm-500 text-sm px-4 py-2.5 rounded-lg transition font-medium flex items-center justify-center gap-1.5">
+          <i data-lucide="eye" class="w-3.5 h-3.5" aria-hidden="true"></i>
+          Preview your client's view
+        </a>
       </div>
     </div>
   </section>
@@ -1558,6 +1562,9 @@ function landingPage(loggedIn = false): string {
         }
 
         proposalUrlInput.value = json.proposal_url;
+        // Wire preview link
+        const previewLink = document.getElementById('previewLink');
+        if (previewLink) previewLink.href = json.proposal_url;
         // Store for email template
         window._proposalTitle = data.title || 'your project';
         window._clientName = data.client_name || '';
@@ -1760,6 +1767,21 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
             <i data-lucide="shield-check" class="w-3 h-3" aria-hidden="true"></i>
             Secure payment &middot; No account needed &middot; Files unlock instantly
           </p>
+          <div class="mt-5 border-t border-warm-100 pt-4 text-left space-y-2">
+            <p class="text-xs text-warm-500 uppercase tracking-wider font-semibold mb-2">What happens after you pay</p>
+            <div class="flex items-start gap-2.5 text-sm text-warm-600">
+              <span class="w-5 h-5 rounded-full bg-accent-50 text-accent-600 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
+              <span>Complete checkout -- credit or debit card, no account required</span>
+            </div>
+            <div class="flex items-start gap-2.5 text-sm text-warm-600">
+              <span class="w-5 h-5 rounded-full bg-accent-50 text-accent-600 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
+              <span>Files unlock automatically the moment payment clears</span>
+            </div>
+            <div class="flex items-start gap-2.5 text-sm text-warm-600">
+              <span class="w-5 h-5 rounded-full bg-accent-50 text-accent-600 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
+              <span>Download your deliverables -- available for 30 days</span>
+            </div>
+          </div>
         </div>
         <p id="pollingStatus" class="text-center text-xs text-warm-500 flex items-center justify-center gap-1.5" role="status" aria-live="polite">
           <i data-lucide="loader-2" class="w-3 h-3 animate-spin" aria-hidden="true"></i>
