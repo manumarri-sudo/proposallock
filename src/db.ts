@@ -1,13 +1,15 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL || "";
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || "";
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || "";
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.warn("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY -- database will not work");
+let supabase: SupabaseClient;
+try {
+  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+} catch (e) {
+  console.error("Failed to create Supabase client:", e);
+  supabase = null as any;
 }
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 // Verify DB connection on startup
 let initialized = false;

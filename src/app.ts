@@ -8,7 +8,7 @@ initDb().catch(console.error);
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 const LS_API_KEY = process.env.LS_API_KEY || process.env.LEMONSQUEEZY_API_KEY || "";
 const LS_VARIANT_ID = process.env.LS_VARIANT_ID || "1407717";
-const LS_WEBHOOK_SECRET = process.env.LS_WEBHOOK_SECRET || "";
+const LS_WEBHOOK_SECRET = process.env.LS_WEBHOOK_SECRET || process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "";
 const LS_STORE_URL = process.env.LEMONSQUEEZY_STORE_URL || "https://agentos-store.lemonsqueezy.com";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
