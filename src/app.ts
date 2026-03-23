@@ -11,10 +11,16 @@ import {
   getProposal,
   markPaid,
   getProposalsByEmail,
+  recordReminderSent,
   supabase,
+  createTestimonial,
+  getPublicTestimonials,
+  getProposalsPendingTestimonialEmail,
+  markTestimonialEmailSent,
+  testimonialExistsForProposal,
 } from "./db";
 import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy";
-import { notifyFreelancerPaid, notifyFreelancerViewed } from "./notify";
+import { notifyFreelancerPaid, notifyFreelancerViewed, notifyClientReminder, sendTestimonialRequestEmail } from "./notify";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
@@ -226,7 +232,7 @@ app.post("/api/proposals", async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body) return c.json({ error: "Invalid JSON" }, 400);
 
-  const { title, client_name, file_url, price, email } = body;
+  const { title, client_name, file_url, price, email, client_email, description } = body;
   if (!title || !client_name || !file_url || !price) {
     return c.json(
       { error: "Missing required fields: title, client_name, file_url, price" },
@@ -245,12 +251,23 @@ app.post("/api/proposals", async (c) => {
   if (!file_url.startsWith("https://") && !VALID_UPLOAD_PATH.test(file_url))
     return c.json({ error: "File URL must start with https://" }, 400);
 
-  // Validate email if provided
+  if (description && (typeof description !== "string" || description.length > 2000))
+    return c.json({ error: "Description too long (max 2000 chars)" }, 400);
+
+  // Validate freelancer email if provided
   let freelancerEmail: string | null = null;
   if (email && typeof email === "string") {
     if (!EMAIL_RE.test(email) || email.length > 320)
       return c.json({ error: "Invalid email address" }, 400);
     freelancerEmail = email.toLowerCase();
+  }
+
+  // Validate client email if provided
+  let clientEmail: string | null = null;
+  if (client_email && typeof client_email === "string") {
+    if (!EMAIL_RE.test(client_email) || client_email.length > 320)
+      return c.json({ error: "Invalid client email address" }, 400);
+    clientEmail = client_email.toLowerCase();
   }
 
   const priceCents = Math.round(parseFloat(price) * 100);
@@ -331,6 +348,59 @@ app.get("/api/proposals/:id/status", async (c) => {
   const proposal = await getProposal(id);
   if (!proposal) return c.json({ error: "Not found" }, 404);
   return c.json({ paid: proposal.paid === true });
+});
+
+// POST /api/testimonials -- submit a testimonial (no auth, proposal_id is access token)
+app.post("/api/testimonials", async (c) => {
+  const ip = c.req.header("x-forwarded-for") || "unknown";
+  if (!checkRateLimit(ip, 5)) {
+    return c.json({ error: "Too many requests. Try again in a minute." }, 429);
+  }
+
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "Invalid JSON" }, 400);
+
+  const { proposal_id, body: testimonialBody, rating, display_name } = body;
+
+  if (!proposal_id || typeof proposal_id !== "string")
+    return c.json({ error: "proposal_id required" }, 400);
+
+  const proposal = await getProposal(proposal_id);
+  if (!proposal) return c.json({ error: "Proposal not found" }, 404);
+  if (!proposal.paid) return c.json({ error: "Proposal not yet paid" }, 400);
+  if (!proposal.freelancer_email)
+    return c.json({ error: "No freelancer email on proposal" }, 400);
+
+  if (!testimonialBody || typeof testimonialBody !== "string")
+    return c.json({ error: "body required" }, 400);
+  if (testimonialBody.length < 20 || testimonialBody.length > 500)
+    return c.json({ error: "body must be 20-500 characters" }, 400);
+
+  if (rating !== undefined && rating !== null) {
+    if (typeof rating !== "number" || !Number.isInteger(rating) || rating < 1 || rating > 5)
+      return c.json({ error: "rating must be 1-5" }, 400);
+  }
+
+  if (display_name !== undefined && display_name !== null) {
+    if (typeof display_name !== "string" || display_name.length > 100)
+      return c.json({ error: "display_name too long" }, 400);
+  }
+
+  await createTestimonial({
+    proposal_id,
+    freelancer_email: proposal.freelancer_email,
+    body: testimonialBody,
+    rating: rating ?? null,
+    display_name: display_name ?? null,
+  });
+
+  return c.json({ success: true });
+});
+
+// GET /api/testimonials/public -- sanitized testimonials for landing page (no PII)
+app.get("/api/testimonials/public", async (c) => {
+  const testimonials = await getPublicTestimonials();
+  return c.json(testimonials);
 });
 
 // POST /api/webhooks/lemonsqueezy -- LS order_created event
@@ -529,6 +599,24 @@ app.get("/dashboard", async (c) => {
     return c.redirect("/login");
   }
   const proposals = await getProposalsByEmail(user.email);
+
+  // 48h testimonial check: fire-and-forget, never delays dashboard load
+  getProposalsPendingTestimonialEmail(user.email).then(async (pending) => {
+    for (const p of pending) {
+      // Double-check no testimonial already exists (idempotent)
+      const alreadyHasTestimonial = await testimonialExistsForProposal(p.id);
+      if (!alreadyHasTestimonial && p.paid_at) {
+        await markTestimonialEmailSent(p.id);
+        sendTestimonialRequestEmail({
+          freelancerEmail: user.email,
+          title: p.title,
+          paidAt: p.paid_at,
+          proposalId: p.id,
+        }).catch((e) => console.error("[testimonial] email error:", e));
+      }
+    }
+  }).catch((e) => console.error("[testimonial] 48h check error:", e));
+
   return c.html(dashboardPage(user.email, proposals));
 });
 
@@ -568,6 +656,17 @@ app.get("/p/:id/success", (c) => {
   const id = c.req.param("id");
   if (!VALID_ID.test(id)) return c.text("Not found", 404);
   return c.html(successPage(id));
+});
+
+// Testimonial form (public -- no auth required, proposal_id is access token)
+app.get("/testimonial", async (c) => {
+  const pid = c.req.query("pid") || "";
+  if (!pid) return c.text("Missing proposal ID", 400);
+  const proposal = await getProposal(pid);
+  if (!proposal || !proposal.paid) {
+    return c.html(`<!DOCTYPE html><html><head><title>Not Found</title></head><body><p>Proposal not found or not yet paid.</p></body></html>`, 404);
+  }
+  return c.html(testimonialPage(pid, escapeHtml(proposal.title)));
 });
 
 // Privacy Policy
@@ -1588,5 +1687,145 @@ async function ensureStorageBucket() {
   }
 }
 ensureStorageBucket().catch((e) => console.error("Storage init error:", e));
+
+function testimonialPage(pid: string, proposalTitle: string): string {
+  return /* html */ `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Share your experience -- ProposalLock</title>
+  ${tailwindConfig}
+</head>
+<body class="bg-warm-50 text-warm-900 min-h-screen antialiased">
+  ${navHtml(false)}
+
+  <main class="max-w-lg mx-auto px-4 sm:px-6 py-10">
+    <div class="bg-white border border-warm-200 rounded-2xl p-8 shadow-sm">
+      <div class="mb-6">
+        <h1 class="text-xl font-bold text-warm-950 mb-1">How did ProposalLock work for you?</h1>
+        <p class="text-warm-500 text-sm">Proposal: <strong class="text-warm-700">${proposalTitle}</strong></p>
+      </div>
+
+      <div id="form-view">
+        <form id="testimonial-form" class="space-y-5">
+          <div>
+            <label for="body" class="block text-sm font-medium text-warm-700 mb-1.5">Your experience <span class="text-warm-400">(20-500 chars)</span></label>
+            <textarea
+              id="body"
+              name="body"
+              rows="4"
+              minlength="20"
+              maxlength="500"
+              required
+              placeholder="Saved me from chasing another invoice..."
+              class="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-warm-900 placeholder-warm-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-500 transition resize-none"
+            ></textarea>
+            <p class="text-xs text-warm-400 mt-1 text-right"><span id="char-count">0</span>/500</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-warm-700 mb-2">Rating <span class="text-warm-400">(optional)</span></label>
+            <div class="flex gap-2" id="star-rating" role="group" aria-label="Rating">
+              ${[1,2,3,4,5].map(n => `
+              <button type="button" data-star="${n}" aria-label="${n} star${n>1?'s':''}"
+                class="star-btn w-9 h-9 text-2xl text-warm-300 hover:text-amber-400 transition focus:outline-none focus:text-amber-400" aria-pressed="false">&#9733;</button>`).join("")}
+            </div>
+          </div>
+
+          <div>
+            <label for="display_name" class="block text-sm font-medium text-warm-700 mb-1.5">How should we credit you? <span class="text-warm-400">(optional)</span></label>
+            <input
+              type="text"
+              id="display_name"
+              name="display_name"
+              maxlength="100"
+              placeholder="A freelance designer"
+              class="w-full border border-warm-300 rounded-xl px-4 py-3 text-sm text-warm-900 placeholder-warm-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-500 transition"
+            />
+          </div>
+
+          <button type="submit" id="submit-btn"
+            class="w-full accent-gradient hover:opacity-90 text-white font-semibold px-5 py-3 rounded-xl transition text-sm shadow-lg shadow-accent-500/20">
+            Submit
+          </button>
+          <p id="error-msg" class="text-red-600 text-sm hidden"></p>
+        </form>
+      </div>
+
+      <div id="success-view" class="hidden text-center py-6">
+        <div class="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="check-circle-2" class="w-7 h-7 text-green-600"></i>
+        </div>
+        <h2 class="text-lg font-bold text-warm-950 mb-2">Thank you!</h2>
+        <p class="text-warm-500 text-sm">Your experience helps other freelancers find ProposalLock.</p>
+      </div>
+    </div>
+  </main>
+
+  ${footerHtml()}
+
+  <script>
+    // Char counter
+    const bodyEl = document.getElementById('body');
+    const charCount = document.getElementById('char-count');
+    bodyEl.addEventListener('input', () => { charCount.textContent = bodyEl.value.length; });
+
+    // Star rating
+    let selectedRating = null;
+    document.querySelectorAll('.star-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const star = parseInt(btn.dataset.star);
+        selectedRating = star;
+        document.querySelectorAll('.star-btn').forEach(b => {
+          const s = parseInt(b.dataset.star);
+          b.style.color = s <= star ? '#f59e0b' : '';
+          b.setAttribute('aria-pressed', s === star ? 'true' : 'false');
+        });
+      });
+    });
+
+    // Form submit
+    document.getElementById('testimonial-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      const errMsg = document.getElementById('error-msg');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+      errMsg.classList.add('hidden');
+
+      const body = bodyEl.value.trim();
+      const display_name = document.getElementById('display_name').value.trim() || null;
+
+      try {
+        const res = await fetch('/api/testimonials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ proposal_id: '${pid}', body, rating: selectedRating, display_name })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          document.getElementById('form-view').classList.add('hidden');
+          document.getElementById('success-view').classList.remove('hidden');
+          if (window.lucide) lucide.createIcons();
+        } else {
+          errMsg.textContent = data.error || 'Something went wrong. Please try again.';
+          errMsg.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = 'Submit';
+        }
+      } catch {
+        errMsg.textContent = 'Network error. Please try again.';
+        errMsg.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Submit';
+      }
+    });
+
+    lucide.createIcons();
+  </script>
+</body>
+</html>`;
+}
 
 export default app;

@@ -75,6 +75,129 @@ export async function notifyFreelancerPaid(params: {
   }
 }
 
+export async function notifyClientReminder(params: {
+  clientEmail: string;
+  title: string;
+  clientName: string;
+  proposalId: string;
+  paymentUrl: string;
+}): Promise<void> {
+  if (!RESEND_API_KEY) {
+    console.warn("RESEND_API_KEY not set -- skipping reminder email");
+    return;
+  }
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: [params.clientEmail],
+        subject: `Reminder: "${params.title}" is waiting for your payment`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <div style="display: inline-block; background: linear-gradient(135deg, #4f46e5, #6366f1); border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+                <span style="color: white; font-size: 16px; font-weight: bold;">PL</span>
+              </div>
+            </div>
+            <h2 style="color: #1a1714; font-size: 20px; margin-bottom: 8px;">Your proposal is ready</h2>
+            <p style="color: #6b5a44; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+              Hi ${escapeHtml(params.clientName)}, just a quick note that your proposal for
+              <strong>${escapeHtml(params.title)}</strong> is ready and waiting for your review.
+            </p>
+            <p style="color: #6b5a44; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+              Files unlock automatically the moment payment goes through. No back and forth needed.
+            </p>
+            <a href="${params.paymentUrl}" style="display: block; text-align: center; background: linear-gradient(135deg, #4f46e5, #6366f1); color: white; font-weight: 600; padding: 12px 24px; border-radius: 12px; text-decoration: none; margin-top: 24px;">
+              Review and Pay
+            </a>
+            <p style="color: #a89272; font-size: 12px; text-align: center; margin-top: 24px;">
+              &copy; 2026 ProposalLock
+            </p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Reminder email failed: ${err}`);
+    }
+    console.log(`[notify] Reminder sent to ${params.clientEmail}`);
+  } catch (e) {
+    console.error("[notify] Reminder error:", e);
+    throw e;
+  }
+}
+
+export async function sendTestimonialRequestEmail(params: {
+  freelancerEmail: string;
+  title: string;
+  paidAt: string;
+  proposalId: string;
+}): Promise<void> {
+  if (!RESEND_API_KEY) return;
+
+  const baseUrl = process.env.BASE_URL || "https://proposallock.vercel.app";
+  const paidDate = new Date(params.paidAt).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const formUrl = `${baseUrl}/testimonial?pid=${params.proposalId}`;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: [params.freelancerEmail],
+        subject: `How did "${escapeHtml(params.title)}" go?`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <div style="display: inline-block; background: linear-gradient(135deg, #4f46e5, #6366f1); border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+                <span style="color: white; font-size: 16px; font-weight: bold;">PL</span>
+              </div>
+            </div>
+            <h2 style="color: #1a1714; font-size: 20px; margin-bottom: 8px;">How did it go?</h2>
+            <p style="color: #6b5a44; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+              Your client paid for <strong>${escapeHtml(params.title)}</strong> on ${paidDate}. The files unlocked automatically.
+            </p>
+            <p style="color: #6b5a44; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+              One quick question: how did ProposalLock work for you?
+            </p>
+            <a href="${formUrl}" style="display: block; text-align: center; background: linear-gradient(135deg, #4f46e5, #6366f1); color: white; font-weight: 600; padding: 12px 24px; border-radius: 12px; text-decoration: none; margin-bottom: 20px;">
+              Share your experience -- 60 seconds
+            </a>
+            <p style="color: #a89272; font-size: 12px; line-height: 1.6; text-align: center; margin-bottom: 0;">
+              It helps other freelancers find ProposalLock.
+            </p>
+            <p style="color: #a89272; font-size: 12px; text-align: center; margin-top: 24px;">
+              &copy; 2026 ProposalLock
+            </p>
+          </div>
+        `,
+      }),
+    });
+
+    if (res.ok) {
+      console.log(`[notify] Testimonial request sent to ${params.freelancerEmail}`);
+    }
+  } catch (e) {
+    console.error("[notify] Testimonial request error:", e);
+  }
+}
+
 export async function notifyFreelancerViewed(params: {
   freelancerEmail: string;
   title: string;
