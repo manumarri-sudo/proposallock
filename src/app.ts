@@ -1202,7 +1202,7 @@ function landingPage(loggedIn = false): string {
 
       <form id="proposalForm" class="space-y-5">
         <div>
-          <label for="proposal-email" class="block text-sm font-medium text-warm-700 mb-1.5">Your email <span class="text-warm-400 font-normal">(for payment notifications)</span></label>
+          <label for="proposal-email" class="block text-sm font-medium text-warm-700 mb-1.5">Your email <span class="text-warm-400 font-normal">(get notified when client views + pays)</span></label>
           <input type="email" id="proposal-email" name="email" placeholder="you@example.com"
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
@@ -1287,6 +1287,10 @@ function landingPage(loggedIn = false): string {
             Copy
           </button>
         </div>
+        <button id="shareBtn" onclick="shareProposal()" class="hidden mt-3 w-full bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2.5 rounded-lg transition font-medium flex items-center justify-center gap-1.5">
+          <i data-lucide="share-2" class="w-3.5 h-3.5" aria-hidden="true"></i>
+          Share with client
+        </button>
       </div>
     </div>
   </section>
@@ -1482,6 +1486,9 @@ function landingPage(loggedIn = false): string {
         proposalUrlInput.value = json.proposal_url;
         proposalResult.classList.remove('hidden');
         proposalResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // Show share button on mobile devices that support Web Share API
+        const shareBtn = document.getElementById('shareBtn');
+        if (shareBtn && navigator.share) shareBtn.classList.remove('hidden');
         form.reset();
         lucide.createIcons();
       } catch (err) {
@@ -1515,6 +1522,17 @@ function landingPage(loggedIn = false): string {
         window.history.replaceState({}, '', url.toString());
       }
     })();
+
+    async function shareProposal() {
+      const url = proposalUrlInput.value;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'Proposal ready for review', text: 'Your proposal is ready. Pay to unlock the deliverables.', url });
+          return;
+        } catch (e) { /* user cancelled or share failed, fall through to copy */ }
+      }
+      await copyUrl();
+    }
 
     async function copyUrl() {
       const url = proposalUrlInput.value;
@@ -1670,6 +1688,7 @@ function proposalPage(id: string): string {
       document.getElementById('loading').classList.add('hidden');
       document.getElementById('content').classList.remove('hidden');
 
+      document.title = data.title + ' -- ProposalLock';
       document.getElementById('title').textContent = data.title;
       document.getElementById('clientName').textContent = data.client_name;
 
