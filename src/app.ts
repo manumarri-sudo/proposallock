@@ -44,8 +44,54 @@ app.use("*", async (c, next) => {
   return csrf({ origin: process.env.BASE_URL || "" })(c, next);
 });
 
-// Static files: Vercel serves public/ automatically at root.
-// For local dev, static serving is handled in src/index.ts.
+// Static assets -- served inline since Vercel rewrites all paths to /api
+app.get("/assets/favicon.svg", (c) => {
+  c.header("Content-Type", "image/svg+xml");
+  c.header("Cache-Control", "public, max-age=86400");
+  return c.body(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="8" fill="url(#g)"/>
+  <path d="M11 15v-4a5 5 0 0 1 10 0v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+  <rect x="9" y="15" width="14" height="10" rx="3" fill="#fff" fill-opacity=".95"/>
+  <circle cx="16" cy="20" r="2" fill="url(#g2)"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#4338ca"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="14" y1="18" x2="18" y2="22" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#4338ca"/>
+    </linearGradient>
+  </defs>
+</svg>`);
+});
+
+app.get("/assets/banner.svg", (c) => {
+  c.header("Content-Type", "image/svg+xml");
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.body(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#fdfcfb"/>
+  <rect x="0" y="0" width="1200" height="630" fill="url(#bg)"/>
+  <rect x="540" y="140" width="120" height="120" rx="28" fill="url(#accent)"/>
+  <path d="M576 200v-16a24 24 0 0 1 48 0v16" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+  <rect x="568" y="200" width="64" height="44" rx="12" fill="#fff" fill-opacity=".95"/>
+  <circle cx="600" cy="222" r="8" fill="url(#accent)"/>
+  <text x="600" y="320" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="52" font-weight="700" fill="#1a1714" text-anchor="middle">Your files unlock</text>
+  <text x="600" y="385" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="52" font-weight="700" fill="#1a1714" text-anchor="middle">the moment they pay.</text>
+  <text x="600" y="450" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="28" fill="#8b7355" text-anchor="middle">Payment-gated file delivery for freelancers. Free to use.</text>
+  <text x="600" y="520" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="600" fill="#6366f1" text-anchor="middle">proposallock.vercel.app</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fdfcfb"/>
+      <stop offset="1" stop-color="#faf6f1"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="540" y1="140" x2="660" y2="260" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#4338ca"/>
+    </linearGradient>
+  </defs>
+</svg>`);
+});
 
 // ─── Analytics: lightweight page view tracking ───
 app.use("*", async (c, next) => {
