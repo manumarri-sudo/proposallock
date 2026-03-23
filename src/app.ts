@@ -162,8 +162,7 @@ const ogMeta = `
   <meta name="twitter:title" content="ProposalLock">
   <meta name="twitter:description" content="Payment-gated file delivery for freelancers. Free to use.">`;
 
-const tailwindConfig = `
-  ${ogMeta}
+const tailwindScripts = `
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script>
@@ -191,6 +190,9 @@ const tailwindConfig = `
     body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .accent-gradient { background: linear-gradient(135deg, #4f46e5, #6366f1); }
   </style>`;
+
+// Full config with og meta (used on pages without custom meta tags)
+const tailwindConfig = `${ogMeta}${tailwindScripts}`;
 
 // Shared nav HTML
 function navHtml(loggedIn = false): string {
@@ -1700,7 +1702,7 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="${ogTitle}" />
   <meta name="twitter:description" content="${ogDesc}" />
-  ${tailwindConfig}
+  ${tailwindScripts}
 </head>
 <body class="bg-warm-50 text-warm-900 min-h-screen flex items-start justify-center pt-8 sm:pt-12 px-4 sm:px-6 antialiased">
   <div class="w-full max-w-md">
