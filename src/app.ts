@@ -1364,6 +1364,55 @@ function landingPage(loggedIn = false): string {
     </div>
   </section>
 
+  <!-- Pricing comparison -->
+  <section class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Why ProposalLock</h2>
+    <div class="overflow-hidden rounded-2xl border border-warm-200 shadow-sm">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-warm-50 border-b border-warm-200">
+            <th class="text-left px-5 py-3 font-medium text-warm-600"></th>
+            <th class="px-5 py-3 font-semibold text-accent-600 text-center">ProposalLock</th>
+            <th class="px-5 py-3 font-medium text-warm-500 text-center">HoneyBook</th>
+            <th class="px-5 py-3 font-medium text-warm-500 text-center">Bonsai</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-warm-100 bg-white">
+          <tr>
+            <td class="px-5 py-3 text-warm-700">Price</td>
+            <td class="px-5 py-3 text-center font-semibold text-accent-600">Free</td>
+            <td class="px-5 py-3 text-center text-warm-500">$66/mo</td>
+            <td class="px-5 py-3 text-center text-warm-500">$24/mo</td>
+          </tr>
+          <tr class="bg-warm-50/50">
+            <td class="px-5 py-3 text-warm-700">Payment-gated file delivery</td>
+            <td class="px-5 py-3 text-center text-green-600">&#10003;</td>
+            <td class="px-5 py-3 text-center text-warm-400">&#10007;</td>
+            <td class="px-5 py-3 text-center text-warm-400">&#10007;</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3 text-warm-700">View notification email</td>
+            <td class="px-5 py-3 text-center text-green-600">&#10003;</td>
+            <td class="px-5 py-3 text-center text-green-600">&#10003;</td>
+            <td class="px-5 py-3 text-center text-green-600">&#10003;</td>
+          </tr>
+          <tr class="bg-warm-50/50">
+            <td class="px-5 py-3 text-warm-700">No monthly subscription</td>
+            <td class="px-5 py-3 text-center text-green-600">&#10003;</td>
+            <td class="px-5 py-3 text-center text-warm-400">&#10007;</td>
+            <td class="px-5 py-3 text-center text-warm-400">&#10007;</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3 text-warm-700">Works in 30 seconds</td>
+            <td class="px-5 py-3 text-center text-green-600">&#10003;</td>
+            <td class="px-5 py-3 text-center text-warm-400">Setup required</td>
+            <td class="px-5 py-3 text-center text-warm-400">Setup required</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <!-- Testimonials (dynamic -- hidden until populated) -->
   <section id="testimonials-section" class="hidden max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">What freelancers say</h2>
