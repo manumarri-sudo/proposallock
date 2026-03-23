@@ -14,7 +14,7 @@ import {
   supabase,
 } from "./db";
 import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy";
-import { notifyFreelancerPaid } from "./notify";
+import { notifyFreelancerPaid, notifyFreelancerViewed } from "./notify";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
@@ -320,6 +320,7 @@ app.get("/api/proposals/:id", async (c) => {
     paid: proposal.paid === true,
     paid_at: proposal.paid_at,
     file_url: fileUrl,
+    created_at: proposal.created_at,
   });
 });
 
@@ -538,9 +539,27 @@ app.get("/", async (c) => {
 });
 
 // Proposal page
-app.get("/p/:id", (c) => {
+app.get("/p/:id", async (c) => {
   const id = c.req.param("id");
   if (!VALID_ID.test(id)) return c.text("Not found", 404);
+
+  // First-view notification: fire-and-forget, never delays response
+  getProposal(id).then(async (proposal) => {
+    if (!proposal || !proposal.freelancer_email || proposal.paid) return;
+    const { count } = await supabase
+      .from("page_views")
+      .select("*", { count: "exact", head: true })
+      .eq("path", `/p/${id}`);
+    if (count === 0) {
+      notifyFreelancerViewed({
+        freelancerEmail: proposal.freelancer_email,
+        title: proposal.title,
+        clientName: proposal.client_name,
+        proposalId: id,
+      }).catch((e) => console.error("[notify] view notification error:", e));
+    }
+  }).catch(() => {});
+
   return c.html(proposalPage(id));
 });
 
@@ -1144,8 +1163,15 @@ function proposalPage(id: string): string {
             <i data-lucide="lock" class="w-6 h-6 text-amber-600"></i>
           </div>
           <p class="text-warm-800 font-semibold mb-1">Files locked until payment</p>
-          <p class="text-warm-500 text-sm mb-5">Pay once to access all deliverables for this project.</p>
-          <div class="text-3xl font-bold text-warm-950 mb-6 tracking-tight" id="price"></div>
+          <p class="text-warm-500 text-sm mb-4">Pay once to access all deliverables for this project.</p>
+          <div id="countdownWrap" class="hidden mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <p class="text-xs text-amber-600 uppercase tracking-wider font-semibold mb-1">Offer expires in</p>
+            <p id="countdown" class="text-2xl font-bold text-amber-700 tabular-nums tracking-tight"></p>
+          </div>
+          <div id="expiredMsg" class="hidden mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600 font-medium">
+            This proposal has expired. Contact the freelancer to request a new one.
+          </div>
+          <div class="text-3xl font-bold text-warm-950 mb-5 tracking-tight" id="price"></div>
           <a id="checkoutBtn" href="#" target="_blank"
             class="flex items-center justify-center gap-2 w-full accent-gradient hover:opacity-90 text-white font-semibold py-3.5 rounded-xl transition text-center shadow-lg shadow-accent-500/20">
             <i data-lucide="credit-card" class="w-4 h-4" aria-hidden="true"></i>
@@ -1230,8 +1256,43 @@ function proposalPage(id: string): string {
           checkoutBtn.classList.add('opacity-50', 'pointer-events-none');
         }
         startPolling();
+
+        // Countdown timer: proposals expire 48h after creation
+        if (data.created_at) {
+          const expiresAt = new Date(data.created_at).getTime() + 48 * 3600 * 1000;
+          startCountdown(expiresAt);
+        }
       }
       lucide.createIcons();
+    }
+
+    let countdownTimer = null;
+    function startCountdown(expiresAt) {
+      function update() {
+        const now = Date.now();
+        const remaining = expiresAt - now;
+        const wrap = document.getElementById('countdownWrap');
+        const display = document.getElementById('countdown');
+        const expired = document.getElementById('expiredMsg');
+        const btn = document.getElementById('checkoutBtn');
+        if (remaining <= 0) {
+          clearInterval(countdownTimer);
+          if (wrap) wrap.classList.add('hidden');
+          if (expired) expired.classList.remove('hidden');
+          if (btn) { btn.classList.add('opacity-50', 'pointer-events-none'); btn.textContent = 'Proposal Expired'; }
+          return;
+        }
+        const h = Math.floor(remaining / 3600000);
+        const m = Math.floor((remaining % 3600000) / 60000);
+        const s = Math.floor((remaining % 60000) / 1000);
+        const hh = String(h).padStart(2, '0');
+        const mm = String(m).padStart(2, '0');
+        const ss = String(s).padStart(2, '0');
+        if (wrap) wrap.classList.remove('hidden');
+        if (display) display.textContent = h >= 24 ? hh + 'h ' + mm + 'm' : hh + ':' + mm + ':' + ss;
+      }
+      update();
+      countdownTimer = setInterval(update, 1000);
     }
 
     function startPolling() {
