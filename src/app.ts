@@ -209,7 +209,7 @@ function footerHtml(): string {
       &copy; 2026 ProposalLock &middot;
       <a href="/privacy" class="hover:text-accent-600 transition">Privacy</a> &middot;
       <a href="/terms" class="hover:text-accent-600 transition">Terms</a> &middot;
-      <a href="mailto:hello@proposallock.io" class="hover:text-accent-600 transition">Contact</a>
+      <a href="mailto:bytewiseai.info@gmail.com" class="hover:text-accent-600 transition">Contact</a>
     </p>
   </footer>`;
 }
@@ -1363,13 +1363,13 @@ function privacyPage(loggedIn = false): string {
       <p>Your data is stored in a PostgreSQL database hosted by <strong>Supabase</strong> with encryption at rest and in transit. Access is restricted via Row Level Security policies and service-role authentication.</p>
 
       <h2 class="text-lg font-semibold text-warm-900 mt-8">6. Data retention</h2>
-      <p>Proposal data is retained as long as your proposals are active. You may request deletion of your data by contacting us at hello@proposallock.io. We will delete your data within 30 days of a verified request.</p>
+      <p>Proposal data is retained as long as your proposals are active. You may request deletion of your data by contacting us at bytewiseai.info@gmail.com. We will delete your data within 30 days of a verified request.</p>
 
       <h2 class="text-lg font-semibold text-warm-900 mt-8">7. Your rights</h2>
-      <p>You have the right to access, correct, or delete your personal data. For EU residents, you have rights under GDPR including data portability and the right to withdraw consent. Contact hello@proposallock.io for any data requests.</p>
+      <p>You have the right to access, correct, or delete your personal data. For EU residents, you have rights under GDPR including data portability and the right to withdraw consent. Contact bytewiseai.info@gmail.com for any data requests.</p>
 
       <h2 class="text-lg font-semibold text-warm-900 mt-8">8. Contact</h2>
-      <p>For privacy questions: <a href="mailto:hello@proposallock.io" class="text-accent-600 hover:text-accent-700">hello@proposallock.io</a></p>
+      <p>For privacy questions: <a href="mailto:bytewiseai.info@gmail.com" class="text-accent-600 hover:text-accent-700">bytewiseai.info@gmail.com</a></p>
     </div>
   </main>
   ${footerHtml()}
@@ -1420,7 +1420,7 @@ function termsPage(loggedIn = false): string {
       <p>We may update these terms from time to time. Changes will be posted on this page with an updated "Last updated" date. Continued use after changes constitutes acceptance.</p>
 
       <h2 class="text-lg font-semibold text-warm-900 mt-8">8. Contact</h2>
-      <p>Questions about these terms: <a href="mailto:hello@proposallock.io" class="text-accent-600 hover:text-accent-700">hello@proposallock.io</a></p>
+      <p>Questions about these terms: <a href="mailto:bytewiseai.info@gmail.com" class="text-accent-600 hover:text-accent-700">bytewiseai.info@gmail.com</a></p>
     </div>
   </main>
   ${footerHtml()}
