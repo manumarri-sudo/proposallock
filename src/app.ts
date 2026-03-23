@@ -1342,6 +1342,10 @@ function landingPage(loggedIn = false): string {
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Frequently asked questions</h2>
     <div class="space-y-6">
       <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
+        <p class="font-medium text-warm-800 mb-2">Does my client need an account?</p>
+        <p class="text-warm-500 text-sm leading-relaxed">No. Your client clicks the link you send, sees the project summary and price, and pays with a credit card. No signup, no account, no friction. Files unlock automatically the moment payment clears.</p>
+      </div>
+      <div class="bg-white border border-warm-200 rounded-xl p-5 shadow-sm">
         <p class="font-medium text-warm-800 mb-2">Does this work with Google Drive or Dropbox?</p>
         <p class="text-warm-500 text-sm leading-relaxed">Yes. Paste any shareable link -- Google Drive, Dropbox, OneDrive, or a direct URL. Use "anyone with link" sharing so the file is accessible once unlocked.</p>
       </div>
@@ -1708,7 +1712,7 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
           </a>
           <p class="text-xs text-warm-500 mt-4 flex items-center justify-center gap-1">
             <i data-lucide="shield-check" class="w-3 h-3" aria-hidden="true"></i>
-            Secure payment via LemonSqueezy -- Files unlock instantly
+            Secure payment &middot; No account needed &middot; Files unlock instantly
           </p>
         </div>
         <p id="pollingStatus" class="text-center text-xs text-warm-500 flex items-center justify-center gap-1.5" role="status" aria-live="polite">
@@ -1737,11 +1741,14 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
     <div id="error" class="hidden text-center text-red-500 py-12" role="alert">Proposal not found.</div>
   </div>
 
-  <p class="text-center mt-8 mb-4">
-    <a href="${process.env.BASE_URL || "https://proposallock.vercel.app"}/?ref=proposal" class="text-xs text-warm-400 hover:text-accent-600 transition">
-      Get paid before you deliver -- try ProposalLock free
+  <div class="mt-8 mb-4 text-center">
+    <a href="${process.env.BASE_URL || "https://proposallock.vercel.app"}/?ref=proposal" class="inline-flex items-center gap-2 bg-white border border-warm-200 rounded-xl px-4 py-2.5 text-xs text-warm-500 hover:border-accent-300 hover:text-accent-600 transition shadow-sm">
+      <div class="w-4 h-4 accent-gradient rounded flex items-center justify-center flex-shrink-0" aria-hidden="true">
+        <i data-lucide="lock" class="w-2.5 h-2.5 text-white"></i>
+      </div>
+      Are you a freelancer? Get paid before you deliver -- ProposalLock is free
     </a>
-  </p>
+  </div>
 
   <script>
     lucide.createIcons();
