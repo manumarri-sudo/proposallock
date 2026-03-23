@@ -2,32 +2,27 @@ services:
   - type: web
     name: proposallock
     runtime: node
-    plan: free
-    nodeVersion: "22.11.0"
-    buildCommand: npm install
-    startCommand: node src/index.ts
+    buildCommand: "npm install"
+    startCommand: "bun src/index.ts"
     envVars:
       - key: PORT
         value: 10000
-      - key: NODE_ENV
-        value: production
-      - key: SUPABASE_URL
+      - key: BASE_URL
+        fromService:
+          type: web
+          name: proposallock
+          property: host
+      - key: LS_API_KEY
         sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
-      - key: LEMONSQUEEZY_API_KEY
+      - key: LS_VARIANT_ID
+        value: "1407717"
+      - key: LS_WEBHOOK_SECRET
         sync: false
       - key: LEMONSQUEEZY_STORE_ID
-        sync: false
-      - key: LEMONSQUEEZY_PRODUCT_ID
-        sync: false
-      - key: LEMONSQUEEZY_WEBHOOK_SECRET
-        sync: false
-      - key: LS_CHECKOUT_URL
-        sync: false
-      - key: RESEND_API_KEY
-        sync: false
-      - key: BASE_URL
-        sync: false
+        value: "312605"
+      - key: LEMONSQUEEZY_STORE_URL
+        value: "https://agentos-store.lemonsqueezy.com"
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1

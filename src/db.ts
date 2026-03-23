@@ -1,60 +1,53 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || "";
+const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || "";
 
-let supabase: SupabaseClient;
-try {
-  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-} catch (e) {
-  console.error("Failed to create Supabase client:", e);
-  supabase = null as any;
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  console.error("SUPABASE_URL and SUPABASE_SERVICE_KEY are required");
+  process.exit(1);
 }
 
-// Verify DB connection on startup
-let initialized = false;
-export async function initDb() {
-  if (initialized) return;
-  try {
-    const { error } = await supabase.from("proposals").select("id").limit(1);
-    if (error) console.error("DB connection check failed:", error.message);
-    else console.log("Supabase connected -- proposals table ready");
-  } catch (e) {
-    console.error("DB init failed:", e);
-  }
-  initialized = true;
-}
+export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-export type Proposal = {
+export interface Proposal {
   id: string;
   title: string;
   client_name: string;
   file_url: string;
   price_cents: number;
+  ls_variant_id: string | null;
   ls_checkout_url: string | null;
   paid: boolean;
   paid_at: string | null;
   created_at: string;
-};
+  freelancer_email: string | null;
+  file_type: "url" | "upload";
+  storage_path: string | null;
+}
 
 export async function createProposal(
-  p: Omit<Proposal, "paid" | "paid_at" | "created_at">
+  data: Omit<Proposal, "paid" | "paid_at" | "created_at">
 ): Promise<Proposal> {
-  const { data, error } = await supabase
+  const { data: row, error } = await supabase
     .from("proposals")
     .insert({
-      id: p.id,
-      title: p.title,
-      client_name: p.client_name,
-      file_url: p.file_url,
-      price_cents: p.price_cents,
-      ls_checkout_url: p.ls_checkout_url,
+      id: data.id,
+      title: data.title,
+      client_name: data.client_name,
+      file_url: data.file_url,
+      price_cents: data.price_cents,
+      ls_variant_id: data.ls_variant_id,
+      ls_checkout_url: data.ls_checkout_url,
+      freelancer_email: data.freelancer_email,
+      file_type: data.file_type || "url",
+      storage_path: data.storage_path || null,
     })
     .select()
     .single();
 
   if (error) throw new Error(`Failed to create proposal: ${error.message}`);
-  return mapRow(data);
+  return row as Proposal;
 }
 
 export async function getProposal(id: string): Promise<Proposal | null> {
@@ -65,7 +58,7 @@ export async function getProposal(id: string): Promise<Proposal | null> {
     .single();
 
   if (error || !data) return null;
-  return mapRow(data);
+  return data as Proposal;
 }
 
 export async function markPaid(id: string): Promise<void> {
@@ -77,16 +70,15 @@ export async function markPaid(id: string): Promise<void> {
   if (error) throw new Error(`Failed to mark paid: ${error.message}`);
 }
 
-function mapRow(row: any): Proposal {
-  return {
-    id: row.id,
-    title: row.title,
-    client_name: row.client_name,
-    file_url: row.file_url,
-    price_cents: row.price_cents,
-    ls_checkout_url: row.ls_checkout_url,
-    paid: Boolean(row.paid),
-    paid_at: row.paid_at,
-    created_at: row.created_at,
-  };
+export async function getProposalsByEmail(
+  email: string
+): Promise<Proposal[]> {
+  const { data, error } = await supabase
+    .from("proposals")
+    .select("*")
+    .eq("freelancer_email", email.toLowerCase())
+    .order("created_at", { ascending: false });
+
+  if (error) return [];
+  return (data as Proposal[]) || [];
 }
