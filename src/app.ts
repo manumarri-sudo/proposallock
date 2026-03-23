@@ -695,6 +695,12 @@ function dashboardPage(
           <td class="py-3 px-4 text-sm text-warm-800 font-medium">${price}</td>
           <td class="py-3 px-4">${status}</td>
           <td class="py-3 px-4 text-sm text-warm-500">${date}</td>
+          <td class="py-3 px-4">
+            <button onclick="copyProposalLink('${baseUrl}/p/${escapeHtml(p.id)}', this)" aria-label="Copy proposal link" class="inline-flex items-center gap-1 text-xs text-warm-500 hover:text-accent-600 bg-warm-100 hover:bg-accent-50 px-2 py-1 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-accent-500/20">
+              <i data-lucide="copy" class="w-3 h-3" aria-hidden="true"></i>
+              Copy
+            </button>
+          </td>
         </tr>`;
     })
     .join("");
@@ -761,6 +767,7 @@ function dashboardPage(
             <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Price</th>
             <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Status</th>
             <th class="text-left py-3 px-4 text-xs font-semibold text-warm-500 uppercase tracking-wider">Created</th>
+            <th class="py-3 px-4"></th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -778,7 +785,18 @@ function dashboardPage(
   </main>
 
   ${footerHtml()}
-  <script>lucide.createIcons();</script>
+  <script>
+    lucide.createIcons();
+    function copyProposalLink(url, btn) {
+      navigator.clipboard.writeText(url).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="check" class="w-3 h-3"></i> Copied';
+        btn.classList.add('text-green-600', 'bg-green-50');
+        lucide.createIcons();
+        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-green-600', 'bg-green-50'); lucide.createIcons(); }, 2000);
+      });
+    }
+  </script>
 </body>
 </html>`;
 }
@@ -860,6 +878,16 @@ function landingPage(loggedIn = false): string {
     <div class="bg-white border border-warm-200 rounded-2xl p-5 sm:p-8 shadow-sm">
       <h2 class="text-xl font-semibold text-warm-900 mb-1">Create a proposal</h2>
       <p class="text-sm text-warm-500 mb-8">Always free. Create a proposal, set your price, and get paid before your client downloads.</p>
+
+      <!-- Quick-start templates -->
+      <div class="mb-6">
+        <p class="text-xs text-warm-500 uppercase tracking-wider font-semibold mb-2">Quick-start templates</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" onclick="applyTemplate('Logo Design Package','500','Logo files (PNG, SVG, brand guidelines PDF)')" class="text-xs bg-warm-100 hover:bg-accent-50 hover:text-accent-700 text-warm-600 px-3 py-1.5 rounded-lg transition font-medium border border-warm-200 hover:border-accent-200">Logo Design -- $500</button>
+          <button type="button" onclick="applyTemplate('Website Redesign','2000','Figma design files + exported assets')" class="text-xs bg-warm-100 hover:bg-accent-50 hover:text-accent-700 text-warm-600 px-3 py-1.5 rounded-lg transition font-medium border border-warm-200 hover:border-accent-200">Website Redesign -- $2000</button>
+          <button type="button" onclick="applyTemplate('Copywriting Package','350','Final copy doc (Word / Google Docs link)')" class="text-xs bg-warm-100 hover:bg-accent-50 hover:text-accent-700 text-warm-600 px-3 py-1.5 rounded-lg transition font-medium border border-warm-200 hover:border-accent-200">Copywriting -- $350</button>
+        </div>
+      </div>
 
       <form id="proposalForm" class="space-y-5">
         <div>
@@ -1116,6 +1144,14 @@ function landingPage(loggedIn = false): string {
         btn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5" aria-hidden="true"></i> Copy';
         lucide.createIcons();
       }, 2000);
+    }
+
+    function applyTemplate(title, price, fileHint) {
+      document.getElementById('proposal-title').value = title;
+      document.getElementById('proposal-price').value = price;
+      const urlInput = document.querySelector('#urlInput input');
+      if (urlInput) urlInput.placeholder = fileHint;
+      document.getElementById('proposal-title').focus();
     }
   </script>
 </body>
