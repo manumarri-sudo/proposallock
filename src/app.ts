@@ -1151,6 +1151,14 @@ function landingPage(loggedIn = false): string {
     <p class="text-sm text-warm-500 mt-5">Works in 30 seconds. &middot; <a href="/p/40f976088b8b451ead213f130c87f166" target="_blank" class="text-accent-600 hover:underline font-medium">See what your client sees</a></p>
   </section>
 
+  <!-- Founder note -->
+  <section class="max-w-2xl mx-auto px-4 sm:px-6 pb-4 sm:pb-6">
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-5 text-center">
+      <p class="text-warm-700 text-sm leading-relaxed">Built after losing $4,200 to a client who gave glowing feedback, approved every revision, then vanished the day files arrived. ProposalLock does one thing: your files don't move until money does.</p>
+      <p class="text-xs text-warm-500 mt-2 font-medium">No mobile app. No team plans. No monthly fee. Just the thing you need.</p>
+    </div>
+  </section>
+
   <!-- Pain Points -->
   <section class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
     <h2 class="text-sm font-semibold text-warm-500 uppercase tracking-widest mb-8 text-center">Sound familiar?</h2>
