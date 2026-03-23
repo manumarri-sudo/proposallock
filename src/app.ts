@@ -303,6 +303,8 @@ app.post("/api/proposals", async (c) => {
     freelancer_email: freelancerEmail,
     file_type: isUpload ? "upload" : "url",
     storage_path: isUpload ? file_url : null,
+    client_email: clientEmail,
+    description: typeof description === "string" ? description.trim() : null,
   });
 
   return c.json({
@@ -341,6 +343,7 @@ app.get("/api/proposals/:id", async (c) => {
     paid_at: proposal.paid_at,
     file_url: fileUrl,
     created_at: proposal.created_at,
+    description: proposal.description ?? null,
   });
 });
 
@@ -351,6 +354,49 @@ app.get("/api/proposals/:id/status", async (c) => {
   const proposal = await getProposal(id);
   if (!proposal) return c.json({ error: "Not found" }, 404);
   return c.json({ paid: proposal.paid === true });
+});
+
+// POST /api/proposals/:id/remind -- send client reminder email (auth required)
+app.post("/api/proposals/:id/remind", async (c) => {
+  const id = c.req.param("id");
+  if (!VALID_ID.test(id)) return c.json({ error: "Not found" }, 404);
+
+  // Auth: require Supabase session
+  const cookieHeader = c.req.header("Cookie") ?? "";
+  const supabaseClient = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    cookies: {
+      getAll() { return parseCookieHeader(cookieHeader); },
+      setAll() {},
+    },
+  });
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+  const proposal = await getProposal(id);
+  if (!proposal) return c.json({ error: "Not found" }, 404);
+  if (proposal.freelancer_email !== user.email) return c.json({ error: "Forbidden" }, 403);
+  if (proposal.paid) return c.json({ error: "Proposal already paid" }, 400);
+  if (!proposal.client_email) return c.json({ error: "No client email on file" }, 400);
+  if (proposal.reminder_count >= 3) return c.json({ error: "Reminder limit reached (max 3)" }, 429);
+
+  // 24h cooldown between reminders
+  if (proposal.reminder_sent_at) {
+    const hoursSince = (Date.now() - new Date(proposal.reminder_sent_at).getTime()) / 3600000;
+    if (hoursSince < 24) return c.json({ error: "Wait 24h between reminders" }, 429);
+  }
+
+  const baseUrl = process.env.BASE_URL || `https://${c.req.header("host")}`;
+  // Fire-and-forget: never fail the request due to email error
+  notifyClientReminder({
+    clientEmail: proposal.client_email,
+    clientName: proposal.client_name,
+    title: proposal.title,
+    proposalId: proposal.id,
+    paymentUrl: `${baseUrl}/p/${proposal.id}`,
+  }).catch((e) => console.error("[remind] email error:", e));
+
+  await recordReminderSent(id, proposal.reminder_count);
+  return c.json({ sent: true, reminder_count: proposal.reminder_count + 1 });
 });
 
 // POST /api/testimonials -- submit a testimonial (no auth, proposal_id is access token)
@@ -819,6 +865,8 @@ function dashboardPage(
     price_cents: number;
     paid: boolean;
     created_at: string;
+    client_email: string | null;
+    reminder_count: number;
   }>,
   templates: Array<{
     id: string;
@@ -854,10 +902,16 @@ function dashboardPage(
           <td class="py-3 px-4">${status}</td>
           <td class="py-3 px-4 text-sm text-warm-500">${date}</td>
           <td class="py-3 px-4">
-            <button onclick="copyProposalLink('${baseUrl}/p/${escapeHtml(p.id)}', this)" aria-label="Copy proposal link" class="inline-flex items-center gap-1 text-xs text-warm-500 hover:text-accent-600 bg-warm-100 hover:bg-accent-50 px-2 py-1 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-accent-500/20">
-              <i data-lucide="copy" class="w-3 h-3" aria-hidden="true"></i>
-              Copy
-            </button>
+            <div class="flex items-center gap-1.5">
+              <button onclick="copyProposalLink('${baseUrl}/p/${escapeHtml(p.id)}', this)" aria-label="Copy proposal link" class="inline-flex items-center gap-1 text-xs text-warm-500 hover:text-accent-600 bg-warm-100 hover:bg-accent-50 px-2 py-1 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-accent-500/20">
+                <i data-lucide="copy" class="w-3 h-3" aria-hidden="true"></i>
+                Copy
+              </button>
+              ${!p.paid && p.client_email && p.reminder_count < 3 ? `<button id="remind-${escapeHtml(p.id)}" onclick="sendReminder('${escapeHtml(p.id)}')" aria-label="Send reminder to client" class="inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-amber-400/20">
+                <i data-lucide="bell" class="w-3 h-3" aria-hidden="true"></i>
+                Remind
+              </button>` : ""}
+            </div>
           </td>
         </tr>`;
     })
@@ -996,6 +1050,38 @@ function dashboardPage(
         lucide.createIcons();
         setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-green-600', 'bg-green-50'); lucide.createIcons(); }, 2000);
       });
+    }
+    async function sendReminder(id) {
+      const btn = document.getElementById('remind-' + id);
+      if (!btn) return;
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> Sending...';
+      lucide.createIcons();
+      try {
+        const res = await fetch('/api/proposals/' + id + '/remind', { method: 'POST' });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Failed');
+        btn.innerHTML = '<i data-lucide="check" class="w-3 h-3"></i> Sent!';
+        btn.classList.add('text-green-600', 'bg-green-50');
+        lucide.createIcons();
+        // Disable if max reminders reached
+        if (json.reminder_count >= 3) {
+          btn.disabled = true;
+          btn.title = 'Reminder limit reached (max 3)';
+        } else {
+          setTimeout(() => {
+            btn.innerHTML = '<i data-lucide="bell" class="w-3 h-3"></i> Remind';
+            btn.classList.remove('text-green-600', 'bg-green-50');
+            btn.disabled = false;
+            lucide.createIcons();
+          }, 3000);
+        }
+      } catch (err) {
+        btn.innerHTML = '<i data-lucide="bell" class="w-3 h-3"></i> Remind';
+        btn.disabled = false;
+        lucide.createIcons();
+        alert(err.message);
+      }
     }
     async function deleteTemplate(id, btn) {
       if (!confirm('Delete this template?')) return;
@@ -1157,6 +1243,17 @@ function landingPage(loggedIn = false): string {
             <input type="number" id="proposal-price" name="price" required min="1" step="0.01" placeholder="500"
               class="w-full bg-warm-50 border border-warm-200 rounded-xl pl-8 pr-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
           </div>
+        </div>
+        <div>
+          <label for="proposal-client-email" class="block text-sm font-medium text-warm-700 mb-1.5">Client email <span class="text-warm-400 font-normal">(optional -- enables reminders)</span></label>
+          <input type="email" id="proposal-client-email" name="client_email" placeholder="client@company.com"
+            class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
+        </div>
+        <div>
+          <label for="proposal-description" class="block text-sm font-medium text-warm-700 mb-1.5">What's included <span class="text-warm-400 font-normal">(optional -- shown to client before payment)</span></label>
+          <textarea id="proposal-description" name="description" maxlength="1000" rows="3"
+            placeholder="Briefly describe the deliverables your client will unlock..."
+            class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition resize-none"></textarea>
         </div>
         <label class="flex items-center gap-2.5 cursor-pointer select-none">
           <input type="checkbox" id="saveAsTemplate" name="save_as_template" class="w-4 h-4 rounded border-warm-300 accent-accent-500 cursor-pointer" />
@@ -1481,6 +1578,12 @@ function proposalPage(id: string): string {
         </div>
       </div>
 
+      <!-- Description block (optional, shown before payment) -->
+      <div id="descriptionBlock" class="hidden bg-warm-100 border border-warm-200 rounded-2xl p-5 mb-4">
+        <p class="text-xs text-warm-500 uppercase tracking-wider font-medium mb-2">What's included</p>
+        <p id="descriptionText" class="text-sm text-warm-700 leading-relaxed whitespace-pre-line"></p>
+      </div>
+
       <!-- Locked state -->
       <div id="lockedState" class="hidden">
         <div class="bg-white border border-amber-200 rounded-2xl p-5 sm:p-6 mb-4 text-center shadow-sm">
@@ -1563,6 +1666,15 @@ function proposalPage(id: string): string {
 
       document.getElementById('title').textContent = data.title;
       document.getElementById('clientName').textContent = data.client_name;
+
+      // Show description block if present
+      if (data.description) {
+        const descEl = document.getElementById('descriptionBlock');
+        if (descEl) {
+          document.getElementById('descriptionText').textContent = data.description;
+          descEl.classList.remove('hidden');
+        }
+      }
 
       const price = (data.price_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 

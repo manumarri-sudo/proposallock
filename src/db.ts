@@ -182,3 +182,51 @@ export async function testimonialExistsForProposal(proposalId: string): Promise<
   if (error) return false;
   return (count ?? 0) > 0;
 }
+
+export interface ProposalTemplate {
+  id: string;
+  freelancer_email: string;
+  title: string;
+  default_price_cents: number;
+  file_url: string;
+  file_type: string;
+  created_at: string;
+}
+
+export async function createTemplate(data: Omit<ProposalTemplate, "id" | "created_at">): Promise<ProposalTemplate> {
+  const { data: row, error } = await supabase
+    .from("proposal_templates")
+    .insert({
+      freelancer_email: data.freelancer_email.toLowerCase(),
+      title: data.title,
+      default_price_cents: data.default_price_cents,
+      file_url: data.file_url,
+      file_type: data.file_type || "url",
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to create template: ${error.message}`);
+  return row as ProposalTemplate;
+}
+
+export async function getTemplatesByEmail(email: string): Promise<ProposalTemplate[]> {
+  const { data, error } = await supabase
+    .from("proposal_templates")
+    .select("*")
+    .eq("freelancer_email", email.toLowerCase())
+    .order("created_at", { ascending: false });
+
+  if (error) return [];
+  return (data as ProposalTemplate[]) || [];
+}
+
+export async function deleteTemplate(id: string, email: string): Promise<void> {
+  const { error } = await supabase
+    .from("proposal_templates")
+    .delete()
+    .eq("id", id)
+    .eq("freelancer_email", email.toLowerCase());
+
+  if (error) throw new Error(`Failed to delete template: ${error.message}`);
+}
