@@ -252,7 +252,7 @@ function navHtml(loggedIn = false): string {
     </a>
     <div class="flex items-center gap-2 sm:gap-4 flex-wrap justify-end">
       ${loggedIn ? '<a href="/dashboard" class="text-sm font-medium text-accent-600 hover:text-accent-700 transition">Dashboard</a>' : ""}
-      <a href="#create" class="text-sm font-medium text-accent-600 hover:text-accent-700 transition hidden sm:inline">Create a proposal</a>
+      <a href="/#create" class="text-sm font-medium text-accent-600 hover:text-accent-700 transition hidden sm:inline">Create a proposal</a>
       ${loggedIn ? '<a href="/auth/logout" class="text-sm text-warm-500 hover:text-warm-700 transition">Log out</a>' : '<a href="/login" class="text-sm text-warm-500 hover:text-warm-700 transition">Log in</a>'}
     </div>
   </nav>`;
@@ -1014,7 +1014,7 @@ function dashboardPage(
         <h1 class="text-2xl font-bold text-warm-950 tracking-tight">Dashboard</h1>
         <p class="text-warm-500 text-sm">${escapeHtml(email)}</p>
       </div>
-      <a href="#create" class="inline-flex items-center justify-center gap-2 accent-gradient hover:opacity-90 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm shadow-lg shadow-accent-500/20">
+      <a href="/#create" class="inline-flex items-center justify-center gap-2 accent-gradient hover:opacity-90 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm shadow-lg shadow-accent-500/20">
         <i data-lucide="plus" class="w-4 h-4" aria-hidden="true"></i>
         New Proposal
       </a>
@@ -1061,7 +1061,11 @@ function dashboardPage(
         <i data-lucide="file-text" class="w-6 h-6 text-warm-400"></i>
       </div>
       <p class="text-warm-800 font-semibold mb-1">No proposals yet</p>
-      <p class="text-warm-500 text-sm">Create your first proposal to get started.</p>
+      <p class="text-warm-500 text-sm mb-5">Create your first proposal to get started.</p>
+      <a href="/#create" class="inline-flex items-center gap-2 accent-gradient hover:opacity-90 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm shadow-lg shadow-accent-500/20">
+        <i data-lucide="plus" class="w-4 h-4" aria-hidden="true"></i>
+        Create your first proposal
+      </a>
     </div>`
     }
 
