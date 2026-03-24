@@ -1492,6 +1492,17 @@ function landingPage(loggedIn = false): string {
     <div id="testimonials-list" class="space-y-4"></div>
   </section>
 
+  <!-- Bottom CTA -->
+  <section class="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16 text-center">
+    <h2 class="text-2xl sm:text-3xl font-bold text-warm-950 mb-4 tracking-tight">Stop sending files on faith.</h2>
+    <p class="text-warm-500 mb-8 max-w-sm mx-auto">Free to create. Files unlock automatically when payment clears. No subscription, no platform fee.</p>
+    <a href="#create" class="inline-flex items-center gap-2 accent-gradient hover:opacity-90 text-white font-semibold px-8 py-3.5 rounded-xl transition text-base shadow-lg shadow-accent-500/20">
+      Create a Free Proposal
+      <i data-lucide="arrow-right" class="w-4 h-4"></i>
+    </a>
+    <p class="text-xs text-warm-400 mt-4">Takes 30 seconds. Works with Google Drive, Dropbox, or file upload.</p>
+  </section>
+
   ${footerHtml()}
 
   <script>
