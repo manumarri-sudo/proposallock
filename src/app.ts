@@ -1724,6 +1724,7 @@ function landingPage(loggedIn = false): string {
         if (mailtoBtn) {
           const clientEmailVal = document.getElementById('proposal-client-email').value || '';
           const emailSubject = encodeURIComponent('Your files are ready: ' + (data.title || 'your project'));
+          const descVal = String(data.description || '').trim();
           const emailBodyLines = [
             'Hi ' + (data.client_name || ''),
             '',
@@ -1731,10 +1732,15 @@ function landingPage(loggedIn = false): string {
             '',
             json.proposal_url,
             '',
-            'Pay once to unlock. Files are available immediately after payment. No account needed.',
-            '',
-            'Let me know if you have any questions before you pay.',
           ];
+          if (descVal) {
+            emailBodyLines.push("What's included:");
+            emailBodyLines.push(descVal);
+            emailBodyLines.push('');
+          }
+          emailBodyLines.push('Pay once to unlock. Files are available immediately after payment. No account needed.');
+          emailBodyLines.push('');
+          emailBodyLines.push('Let me know if you have any questions before you pay.');
           mailtoBtn.href = 'mailto:' + encodeURIComponent(clientEmailVal) + '?subject=' + emailSubject + '&body=' + encodeURIComponent(emailBodyLines.join('\\n'));
         }
         // Wire preview link
@@ -1749,6 +1755,7 @@ function landingPage(loggedIn = false): string {
         // Store for email template
         window._proposalTitle = data.title || 'your project';
         window._clientName = data.client_name || '';
+        window._proposalDescription = String(data.description || '').trim();
         // Show client notification status
         const clientNotifiedRow = document.getElementById('clientNotifiedRow');
         const emailTplBtn = document.getElementById('emailTplBtn');
@@ -1832,7 +1839,8 @@ function landingPage(loggedIn = false): string {
       const url = proposalUrlInput.value;
       const title = window._proposalTitle || 'your project';
       const client = window._clientName ? ('Hi ' + window._clientName + ',') : 'Hi,';
-      const template = [
+      const desc = window._proposalDescription;
+      const lines = [
         'Subject: Your files are ready -- ' + title,
         '',
         client,
@@ -1841,10 +1849,16 @@ function landingPage(loggedIn = false): string {
         '',
         url,
         '',
-        'Pay once to unlock -- files are available immediately after payment clears. No account needed.',
-        '',
-        'Let me know if you have any questions before you pay.',
-      ].join('\\n');
+      ];
+      if (desc) {
+        lines.push("What's included:");
+        lines.push(desc);
+        lines.push('');
+      }
+      lines.push('Pay once to unlock -- files are available immediately after payment clears. No account needed.');
+      lines.push('');
+      lines.push('Let me know if you have any questions before you pay.');
+      const template = lines.join('\\n');
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(template);
