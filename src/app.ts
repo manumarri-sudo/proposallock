@@ -1372,7 +1372,7 @@ function landingPage(loggedIn = false): string {
           </div>
         </div>
         <div>
-          <label for="proposal-client-email" class="block text-sm font-medium text-warm-700 mb-1.5">Client email <span class="text-warm-400 font-normal">(optional -- auto-sends proposal + enables reminders)</span></label>
+          <label for="proposal-client-email" class="block text-sm font-medium text-warm-700 mb-1.5">Client email <span class="text-accent-600 font-normal">(recommended -- auto-sends proposal link + enables follow-up reminders)</span></label>
           <input type="email" id="proposal-client-email" name="client_email" placeholder="client@company.com"
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
@@ -2014,6 +2014,13 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
             </div>
           </div>
         </div>
+
+        <!-- Second CTA: shown after FAQ for mobile users who scrolled past the top -->
+        <a id="checkoutBtn2" href="#" target="_blank"
+          class="mt-4 flex items-center justify-center gap-2 w-full accent-gradient hover:opacity-90 text-white font-semibold py-3.5 rounded-xl transition text-center shadow-lg shadow-accent-500/20">
+          <i data-lucide="credit-card" class="w-4 h-4" aria-hidden="true"></i>
+          <span id="checkoutBtnText2">Pay to Unlock Files</span>
+        </a>
       </div>
 
       <!-- Paid/unlocked state -->
@@ -2091,9 +2098,13 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
         document.getElementById('price').textContent = price;
         const btnText = document.getElementById('checkoutBtnText');
         if (btnText) btnText.textContent = 'Pay ' + price + ' to Unlock Files';
+        const btnText2 = document.getElementById('checkoutBtnText2');
+        if (btnText2) btnText2.textContent = 'Pay ' + price + ' to Unlock Files';
         const checkoutBtn = document.getElementById('checkoutBtn');
+        const checkoutBtn2 = document.getElementById('checkoutBtn2');
         if (data.ls_checkout_url) {
           checkoutBtn.href = data.ls_checkout_url;
+          if (checkoutBtn2) checkoutBtn2.href = data.ls_checkout_url;
           checkoutBtn.addEventListener('click', () => {
             const ps = document.getElementById('pollingStatus');
             if (ps) {
@@ -2111,6 +2122,7 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
         } else {
           checkoutBtn.textContent = 'Payment not configured';
           checkoutBtn.classList.add('opacity-50', 'pointer-events-none');
+          if (checkoutBtn2) { checkoutBtn2.textContent = 'Payment not configured'; checkoutBtn2.classList.add('opacity-50', 'pointer-events-none'); }
         }
         startPolling();
 
