@@ -1328,12 +1328,6 @@ function landingPage(loggedIn = false): string {
           <input type="email" id="proposal-client-email" name="client_email" placeholder="client@company.com"
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
-        <div>
-          <label for="proposal-description" class="block text-sm font-medium text-warm-700 mb-1.5">What's included <span class="text-warm-400 font-normal">(optional -- shown to client before payment)</span></label>
-          <textarea id="proposal-description" name="description" maxlength="1000" rows="3"
-            placeholder="Briefly describe the deliverables your client will unlock..."
-            class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition resize-none"></textarea>
-        </div>
         <label class="flex items-center gap-2.5 cursor-pointer select-none">
           <input type="checkbox" id="saveAsTemplate" name="save_as_template" class="w-4 h-4 rounded border-warm-300 accent-accent-500 cursor-pointer" />
           <span class="text-sm text-warm-600">Save as template for future proposals</span>
@@ -1738,17 +1732,17 @@ function landingPage(loggedIn = false): string {
       const title = window._proposalTitle || 'your project';
       const client = window._clientName ? ('Hi ' + window._clientName + ',') : 'Hi,';
       const template = [
-        'Subject: Your proposal is ready -- ' + title,
+        'Subject: Your files are ready -- ' + title,
         '',
         client,
         '',
-        'Your proposal for ' + title + ' is ready to review. Click the link below to see the project summary and unlock your deliverables:',
+        'Your deliverables for ' + title + ' are complete. Click the link below to review the project summary and unlock your files:',
         '',
         url,
         '',
-        'Payment is one-time and your files unlock instantly once confirmed.',
+        'Pay once to unlock -- files are available immediately after payment clears. No account needed.',
         '',
-        'Let me know if you have any questions.',
+        'Let me know if you have any questions before you pay.',
       ].join('\\n');
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
