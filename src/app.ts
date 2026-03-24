@@ -1309,9 +1309,9 @@ function landingPage(loggedIn = false): string {
       <div class="mb-6">
         <p class="text-xs text-warm-500 uppercase tracking-wider font-semibold mb-2">Quick-start templates</p>
         <div class="flex flex-wrap gap-2">
-          <button type="button" onclick="applyTemplate('Logo Design Package','500','Logo files (PNG, SVG, brand guidelines PDF)')" class="text-xs bg-warm-100 hover:bg-accent-50 hover:text-accent-700 text-warm-600 px-3 py-1.5 rounded-lg transition font-medium border border-warm-200 hover:border-accent-200">Logo Design -- $500</button>
-          <button type="button" onclick="applyTemplate('Website Redesign','2000','Figma design files + exported assets')" class="text-xs bg-warm-100 hover:bg-accent-50 hover:text-accent-700 text-warm-600 px-3 py-1.5 rounded-lg transition font-medium border border-warm-200 hover:border-accent-200">Website Redesign -- $2000</button>
-          <button type="button" onclick="applyTemplate('Copywriting Package','350','Final copy doc (Word / Google Docs link)')" class="text-xs bg-warm-100 hover:bg-accent-50 hover:text-accent-700 text-warm-600 px-3 py-1.5 rounded-lg transition font-medium border border-warm-200 hover:border-accent-200">Copywriting -- $350</button>
+          <button type="button" onclick="applyTemplate('Logo Design Package','500','Logo files (PNG, SVG, brand guidelines PDF)','Final logo suite: PNG (transparent + white), SVG vector, PDF print-ready. Brand guidelines PDF with color codes and typography. 2 rounds of revisions included.')" class="text-xs bg-warm-100 hover:bg-accent-50 hover:text-accent-700 text-warm-600 px-3 py-1.5 rounded-lg transition font-medium border border-warm-200 hover:border-accent-200">Logo Design -- $500</button>
+          <button type="button" onclick="applyTemplate('Website Redesign','2000','Figma design files + exported assets','Full Figma design file with all pages. Exported assets (PNG, SVG, WebP). Mobile and desktop breakpoints. Developer handoff notes. 2 rounds of revisions included.')" class="text-xs bg-warm-100 hover:bg-accent-50 hover:text-accent-700 text-warm-600 px-3 py-1.5 rounded-lg transition font-medium border border-warm-200 hover:border-accent-200">Website Redesign -- $2000</button>
+          <button type="button" onclick="applyTemplate('Copywriting Package','350','Final copy doc (Word / Google Docs link)','Final copy document with all agreed deliverables. One revision pass included. Delivered as Google Doc with edit access.')" class="text-xs bg-warm-100 hover:bg-accent-50 hover:text-accent-700 text-warm-600 px-3 py-1.5 rounded-lg transition font-medium border border-warm-200 hover:border-accent-200">Copywriting -- $350</button>
         </div>
       </div>
 
@@ -1330,6 +1330,12 @@ function landingPage(loggedIn = false): string {
           <label for="proposal-client" class="block text-sm font-medium text-warm-700 mb-1.5">Client name</label>
           <input type="text" id="proposal-client" name="client_name" required placeholder="Jane Smith"
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
+        </div>
+        <div>
+          <label for="proposal-description" class="block text-sm font-medium text-warm-700 mb-1.5">What's included <span class="text-warm-400 font-normal">(optional -- shown to client before payment)</span></label>
+          <textarea id="proposal-description" name="description" rows="3" maxlength="2000" placeholder="e.g. Final logo files (PNG, SVG, PDF), brand guidelines doc, 2 rounds of revisions included"
+            class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition resize-none text-sm leading-relaxed"></textarea>
+          <p class="text-xs text-warm-400 mt-1">Client sees this on the proposal page as a preview of deliverables before paying.</p>
         </div>
         <div>
           <label class="block text-sm font-medium text-warm-700 mb-1.5" id="deliverable-label">Your deliverable</label>
@@ -1858,11 +1864,13 @@ function landingPage(loggedIn = false): string {
       }
     }
 
-    function applyTemplate(title, price, fileHint) {
+    function applyTemplate(title, price, fileHint, description) {
       document.getElementById('proposal-title').value = title;
       document.getElementById('proposal-price').value = price;
       const urlInput = document.querySelector('#urlInput input');
       if (urlInput) urlInput.placeholder = fileHint;
+      const descEl = document.getElementById('proposal-description');
+      if (descEl && description) descEl.value = description;
       document.getElementById('proposal-title').focus();
     }
   </script>
