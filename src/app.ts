@@ -1344,7 +1344,7 @@ function landingPage(loggedIn = false): string {
           </div>
         </div>
         <div>
-          <label for="proposal-client-email" class="block text-sm font-medium text-warm-700 mb-1.5">Client email <span class="text-warm-400 font-normal">(optional -- enables reminders)</span></label>
+          <label for="proposal-client-email" class="block text-sm font-medium text-warm-700 mb-1.5">Client email <span class="text-warm-400 font-normal">(optional -- auto-sends proposal + enables reminders)</span></label>
           <input type="email" id="proposal-client-email" name="client_email" placeholder="client@company.com"
             class="w-full bg-warm-50 border border-warm-200 rounded-xl px-4 py-3 text-warm-900 placeholder-warm-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 transition" />
         </div>
@@ -1367,6 +1367,7 @@ function landingPage(loggedIn = false): string {
         </div>
         <p id="clientNotified" class="hidden text-xs text-green-600 flex items-center gap-1 mb-2">
           <i data-lucide="mail-check" class="w-3 h-3" aria-hidden="true"></i>
+          <span id="clientNotifiedText"></span>
         </p>
         <p class="text-sm text-warm-500 mb-3">Share this link with your client:</p>
         <div class="flex gap-2">
@@ -1673,8 +1674,10 @@ function landingPage(loggedIn = false): string {
         const clientNotified = document.getElementById('clientNotified');
         const clientEmailInput = document.getElementById('proposal-client-email');
         if (clientNotified && json.client_email_sent && clientEmailInput && clientEmailInput.value) {
-          clientNotified.textContent = 'Email sent to ' + clientEmailInput.value;
+          const notifiedText = document.getElementById('clientNotifiedText');
+          if (notifiedText) notifiedText.textContent = 'Email sent to ' + clientEmailInput.value;
           clientNotified.classList.remove('hidden');
+          lucide.createIcons();
         }
         // Wire preview link
         const previewLink = document.getElementById('previewLink');
@@ -2010,25 +2013,16 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
           checkoutBtn.href = data.ls_checkout_url;
           checkoutBtn.addEventListener('click', () => {
             const ps = document.getElementById('pollingStatus');
-            if (ps) ps.classList.remove('hidden');
+            if (ps) {
+              ps.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin" aria-hidden="true"></i> Checking for payment... this page updates automatically.';
+              lucide.createIcons();
+            }
           }, { once: true });
         } else {
           checkoutBtn.textContent = 'Payment not configured';
           checkoutBtn.classList.add('opacity-50', 'pointer-events-none');
         }
         startPolling();
-
-        // After checkout click: switch pollingStatus to active spinner
-        const checkoutBtnEl = document.getElementById('checkoutBtn');
-        if (checkoutBtnEl) {
-          checkoutBtnEl.addEventListener('click', () => {
-            const ps = document.getElementById('pollingStatus');
-            if (ps) {
-              ps.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin" aria-hidden="true"></i> Checking for payment... this page updates automatically.';
-              lucide.createIcons();
-            }
-          }, { once: true });
-        }
 
         // Countdown timer: expires 48h after CLIENT'S FIRST VIEW (not creation)
         // This prevents "already expired" proposals when freelancer sends late
