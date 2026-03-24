@@ -1004,6 +1004,15 @@ function dashboardPage(
                 <i data-lucide="copy" class="w-3 h-3" aria-hidden="true"></i>
                 Copy
               </button>
+              ${!p.paid ? (() => {
+        const mailSubject = encodeURIComponent(`Your files are ready: ${p.title}`);
+        const mailBody = encodeURIComponent(`Hi ${p.client_name},\n\nYour deliverables for ${p.title} are complete. Click the link below to review and unlock your files:\n\n${baseUrl}/p/${p.id}\n\nPay once to unlock -- files are available immediately after payment clears. No account needed.\n\nLet me know if you have any questions before you pay.`);
+        const toParam = p.client_email ? encodeURIComponent(p.client_email) : '';
+        return `<a href="mailto:${toParam}?subject=${mailSubject}&body=${mailBody}" aria-label="Email proposal link to client" class="inline-flex items-center gap-1 text-xs text-accent-600 hover:text-accent-700 bg-accent-50 hover:bg-accent-100 px-2 py-1 rounded-lg transition">
+                <i data-lucide="send" class="w-3 h-3" aria-hidden="true"></i>
+                Send
+              </a>`;
+      })() : ""}
               ${!p.paid && p.client_email && p.reminder_count < 3 ? `<button id="remind-${escapeHtml(p.id)}" onclick="sendReminder('${escapeHtml(p.id)}')" aria-label="Send reminder to client" class="inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-amber-400/20">
                 <i data-lucide="bell" class="w-3 h-3" aria-hidden="true"></i>
                 Remind
