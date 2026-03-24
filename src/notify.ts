@@ -304,9 +304,12 @@ export async function notifyFreelancerViewed(params: {
               <p style="color: #1a1714; font-weight: 600; margin: 0;">${escapeHtml(params.title)}</p>
             </div>
             <p style="color: #6b5a44; font-size: 14px; line-height: 1.6;">
-              They haven't paid yet. If they have questions, now is a great time to follow up.
+              They haven't paid yet. Send them a quick reminder to keep the deal moving.
             </p>
-            <a href="${baseUrl}/dashboard" style="display: block; text-align: center; background: linear-gradient(135deg, #4f46e5, #6366f1); color: white; font-weight: 600; padding: 12px 24px; border-radius: 12px; text-decoration: none; margin-top: 24px;">
+            <a href="${baseUrl}/dashboard?remind=${params.proposalId}" style="display: block; text-align: center; background: linear-gradient(135deg, #4f46e5, #6366f1); color: white; font-weight: 600; padding: 12px 24px; border-radius: 12px; text-decoration: none; margin-top: 24px;">
+              Send Reminder Now
+            </a>
+            <a href="${baseUrl}/dashboard" style="display: block; text-align: center; color: #a89272; font-size: 13px; padding: 8px; text-decoration: none; margin-top: 8px;">
               View Dashboard
             </a>
             <p style="color: #a89272; font-size: 12px; text-align: center; margin-top: 24px;">

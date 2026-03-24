@@ -1192,6 +1192,17 @@ function dashboardPage(
         alert('Could not delete template. Please try again.');
       }
     }
+    // Auto-trigger remind if ?remind= URL param is present (from "client viewed" email CTA)
+    (function() {
+      const remindId = new URLSearchParams(window.location.search).get('remind');
+      if (!remindId) return;
+      const btn = document.getElementById('remind-' + remindId);
+      if (btn && !btn.disabled) {
+        btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        btn.classList.add('ring-2', 'ring-amber-400', 'ring-offset-1');
+        setTimeout(() => sendReminder(remindId), 800);
+      }
+    })();
   </script>
 </body>
 </html>`;
