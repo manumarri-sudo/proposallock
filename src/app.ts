@@ -503,11 +503,14 @@ app.post("/api/testimonials", async (c) => {
 // GET /api/stats -- public proposal count for social proof
 app.get("/api/stats", async (c) => {
   c.header("Cache-Control", "public, max-age=300"); // 5-min cache
-  const { count, error } = await supabase
-    .from("proposals")
-    .select("*", { count: "exact", head: true });
-  if (error) return c.json({ proposals: 0 });
-  return c.json({ proposals: count ?? 0 });
+  const [totalRes, paidRes] = await Promise.all([
+    supabase.from("proposals").select("*", { count: "exact", head: true }),
+    supabase.from("proposals").select("*", { count: "exact", head: true }).eq("paid", true),
+  ]);
+  return c.json({
+    proposals: totalRes.count ?? 0,
+    paid: paidRes.count ?? 0,
+  });
 });
 
 // GET /api/testimonials/public -- sanitized testimonials for landing page (no PII)
@@ -1522,10 +1525,13 @@ function landingPage(loggedIn = false): string {
       try {
         const res = await fetch('/api/stats');
         if (!res.ok) return;
-        const { proposals } = await res.json();
-        if (!proposals || proposals < 3) return; // Only show once meaningful
+        const { proposals, paid } = await res.json();
         const el = document.getElementById('social-proof');
-        if (el) {
+        if (!el) return;
+        if (paid && paid >= 1) {
+          el.textContent = paid + ' client' + (paid !== 1 ? 's' : '') + ' have paid and downloaded files via ProposalLock.';
+          el.classList.remove('hidden');
+        } else if (proposals && proposals >= 3) {
           el.textContent = proposals + ' proposals created so far.';
           el.classList.remove('hidden');
         }
@@ -1875,8 +1881,8 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
           </div>
         </div>
         <p id="pollingStatus" class="text-center text-xs text-warm-500 flex items-center justify-center gap-1.5 mt-3" role="status" aria-live="polite">
-          <i data-lucide="loader-2" class="w-3 h-3 animate-spin" aria-hidden="true"></i>
-          Once you pay, your files will unlock automatically on this page.
+          <i data-lucide="info" class="w-3 h-3" aria-hidden="true"></i>
+          Files unlock automatically on this page after payment.
         </p>
 
         <!-- Client FAQ (only visible in locked state) -->
@@ -1984,6 +1990,18 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
           checkoutBtn.classList.add('opacity-50', 'pointer-events-none');
         }
         startPolling();
+
+        // After checkout click: switch pollingStatus to active spinner
+        const checkoutBtnEl = document.getElementById('checkoutBtn');
+        if (checkoutBtnEl) {
+          checkoutBtnEl.addEventListener('click', () => {
+            const ps = document.getElementById('pollingStatus');
+            if (ps) {
+              ps.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin" aria-hidden="true"></i> Checking for payment... this page updates automatically.';
+              lucide.createIcons();
+            }
+          }, { once: true });
+        }
 
         // Countdown timer: expires 48h after CLIENT'S FIRST VIEW (not creation)
         // This prevents "already expired" proposals when freelancer sends late
