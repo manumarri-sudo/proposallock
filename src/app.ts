@@ -1874,10 +1874,33 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
             </div>
           </div>
         </div>
-        <p id="pollingStatus" class="text-center text-xs text-warm-500 flex items-center justify-center gap-1.5" role="status" aria-live="polite">
+        <p id="pollingStatus" class="text-center text-xs text-warm-500 flex items-center justify-center gap-1.5 mt-3" role="status" aria-live="polite">
           <i data-lucide="loader-2" class="w-3 h-3 animate-spin" aria-hidden="true"></i>
-          Waiting for payment confirmation...
+          Once you pay, your files will unlock automatically on this page.
         </p>
+
+        <!-- Client FAQ (only visible in locked state) -->
+        <div class="mt-4 bg-warm-50 border border-warm-200 rounded-xl p-4">
+          <p class="text-xs text-warm-500 uppercase tracking-wider font-semibold mb-3">Common questions</p>
+          <div class="space-y-3">
+            <div>
+              <p class="text-sm font-medium text-warm-800">Is this payment secure?</p>
+              <p class="text-xs text-warm-500 mt-0.5 leading-relaxed">Yes. Payments are processed by LemonSqueezy (PCI-compliant). ProposalLock and your freelancer never see your card details.</p>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-warm-800">Do I need to create an account?</p>
+              <p class="text-xs text-warm-500 mt-0.5 leading-relaxed">No. Pay once and your files unlock immediately. No signup, no account, no friction.</p>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-warm-800">What if I have an issue with the files?</p>
+              <p class="text-xs text-warm-500 mt-0.5 leading-relaxed">Contact your freelancer directly -- they own the deliverables and set up this proposal. Your payment receipt includes their contact info.</p>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-warm-800">How long do I have to download?</p>
+              <p class="text-xs text-warm-500 mt-0.5 leading-relaxed">Your download link stays active for 30 days. Bookmark this page after paying so you can come back anytime.</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Paid/unlocked state -->
