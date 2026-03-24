@@ -202,11 +202,10 @@ export async function notifyClientProposal(params: {
   clientEmail: string;
   clientName: string;
   title: string;
-  proposalId: string;
-  priceCents: number;
   proposalUrl: string;
-}): Promise<void> {
-  if (!RESEND_API_KEY) return;
+  priceCents: number;
+}): Promise<boolean> {
+  if (!RESEND_API_KEY) return false;
 
   const priceFormatted = (params.priceCents / 100).toLocaleString("en-US", {
     style: "currency",
@@ -255,14 +254,17 @@ export async function notifyClientProposal(params: {
         `,
       }),
     });
+
     if (res.ok) {
-      console.log(`[notify] Proposal email sent to ${params.clientEmail}`);
-    } else {
-      const err = await res.text();
-      console.error("[notify] Client proposal email failed:", err);
+      console.log(`[notify] Client proposal email sent to ${params.clientEmail}`);
+      return true;
     }
+    const err = await res.text();
+    console.error("[notify] Client proposal email failed:", err);
+    return false;
   } catch (e) {
     console.error("[notify] Client proposal email error:", e);
+    return false;
   }
 }
 

@@ -23,7 +23,7 @@ import {
   deleteTemplate,
 } from "./db";
 import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy";
-import { notifyFreelancerPaid, notifyFreelancerViewed, notifyClientReminder, notifyClientProposal, sendTestimonialRequestEmail } from "./notify";
+import { notifyFreelancerPaid, notifyFreelancerViewed, notifyClientReminder, sendTestimonialRequestEmail, notifyClientProposal } from "./notify";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
@@ -359,25 +359,26 @@ app.post("/api/proposals", async (c) => {
     storage_path: isUpload ? file_url : null,
     client_email: clientEmail,
     description: typeof description === "string" ? description.trim() : null,
+    testimonial_email_sent_at: null,
   });
 
-  // Auto-notify client if email was provided (fire-and-forget)
-  if (clientEmail && checkout?.checkoutUrl) {
-    notifyClientProposal({
+  // Auto-email client if email provided (removes manual send friction)
+  let clientEmailSent = false;
+  if (clientEmail) {
+    clientEmailSent = await notifyClientProposal({
       clientEmail,
       clientName: client_name,
       title,
-      proposalId: id,
-      priceCents,
       proposalUrl: `${baseUrl}/p/${id}`,
-    }).catch((e) => console.error("[notify] client proposal email error:", e));
+      priceCents,
+    }).catch(() => false);
   }
 
   return c.json({
     id: proposal.id,
     proposal_url: `${baseUrl}/p/${id}`,
     checkout_url: proposal.ls_checkout_url,
-    client_email_sent: !!(clientEmail && checkout?.checkoutUrl),
+    client_email_sent: clientEmailSent,
   });
 });
 
@@ -1382,6 +1383,10 @@ function landingPage(loggedIn = false): string {
           <i data-lucide="share-2" class="w-3.5 h-3.5" aria-hidden="true"></i>
           Share with client
         </button>
+        <div id="clientNotifiedRow" class="hidden mt-2 w-full bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-2.5 rounded-lg flex items-center justify-center gap-1.5">
+          <i data-lucide="send" class="w-3.5 h-3.5" aria-hidden="true"></i>
+          <span>Email sent to your client</span>
+        </div>
         <button id="emailTplBtn" onclick="copyEmailTemplate()" class="mt-2 w-full bg-white border border-warm-200 hover:border-accent-300 hover:text-accent-600 text-warm-600 text-sm px-4 py-2.5 rounded-lg transition font-medium flex items-center justify-center gap-1.5">
           <i data-lucide="mail" class="w-3.5 h-3.5" aria-hidden="true"></i>
           Copy email to client
@@ -1691,6 +1696,13 @@ function landingPage(loggedIn = false): string {
         // Store for email template
         window._proposalTitle = data.title || 'your project';
         window._clientName = data.client_name || '';
+        // Show client notification status
+        const clientNotifiedRow = document.getElementById('clientNotifiedRow');
+        const emailTplBtn = document.getElementById('emailTplBtn');
+        if (json.client_email_sent && clientNotifiedRow) {
+          clientNotifiedRow.classList.remove('hidden');
+          if (emailTplBtn) emailTplBtn.classList.add('hidden'); // hide manual copy if auto-sent
+        }
         proposalResult.classList.remove('hidden');
         proposalResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         // Show share button on mobile devices that support Web Share API
