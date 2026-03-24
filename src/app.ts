@@ -500,6 +500,16 @@ app.post("/api/testimonials", async (c) => {
   return c.json({ success: true });
 });
 
+// GET /api/stats -- public proposal count for social proof
+app.get("/api/stats", async (c) => {
+  c.header("Cache-Control", "public, max-age=300"); // 5-min cache
+  const { count, error } = await supabase
+    .from("proposals")
+    .select("*", { count: "exact", head: true });
+  if (error) return c.json({ proposals: 0 });
+  return c.json({ proposals: count ?? 0 });
+});
+
 // GET /api/testimonials/public -- sanitized testimonials for landing page (no PII)
 app.get("/api/testimonials/public", async (c) => {
   const testimonials = await getPublicTestimonials();
@@ -1197,6 +1207,7 @@ function landingPage(loggedIn = false): string {
       <i data-lucide="arrow-right" class="w-4 h-4"></i>
     </a>
     <p class="text-sm text-warm-500 mt-5">Works in 30 seconds. &middot; <a href="/p/40f976088b8b451ead213f130c87f166" target="_blank" class="text-accent-600 hover:underline font-medium">See what your client sees</a></p>
+    <p id="social-proof" class="hidden text-xs text-warm-400 mt-2"></p>
   </section>
 
   <!-- Founder note -->
@@ -1507,6 +1518,21 @@ function landingPage(loggedIn = false): string {
 
   <script>
     lucide.createIcons();
+
+    // Load social proof counter
+    (async () => {
+      try {
+        const res = await fetch('/api/stats');
+        if (!res.ok) return;
+        const { proposals } = await res.json();
+        if (!proposals || proposals < 3) return; // Only show once meaningful
+        const el = document.getElementById('social-proof');
+        if (el) {
+          el.textContent = proposals + ' proposals created so far.';
+          el.classList.remove('hidden');
+        }
+      } catch (_) {}
+    })();
 
     // Load testimonials dynamically
     (async () => {
@@ -1938,11 +1964,16 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
         }
         startPolling();
 
-        // Countdown timer: proposals expire 48h after creation
-        if (data.created_at) {
-          const expiresAt = new Date(data.created_at).getTime() + 48 * 3600 * 1000;
-          startCountdown(expiresAt);
+        // Countdown timer: expires 48h after CLIENT'S FIRST VIEW (not creation)
+        // This prevents "already expired" proposals when freelancer sends late
+        const storageKey = 'pl_fv_' + proposalId;
+        let firstViewMs = parseInt(localStorage.getItem(storageKey) || '0', 10);
+        if (!firstViewMs) {
+          firstViewMs = Date.now();
+          try { localStorage.setItem(storageKey, String(firstViewMs)); } catch(_) {}
         }
+        const expiresAt = firstViewMs + 48 * 3600 * 1000;
+        startCountdown(expiresAt);
       }
       lucide.createIcons();
     }
@@ -1969,8 +2000,13 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
         const hh = String(h).padStart(2, '0');
         const mm = String(m).padStart(2, '0');
         const ss = String(s).padStart(2, '0');
-        if (wrap) wrap.classList.remove('hidden');
-        if (display) display.textContent = h >= 24 ? hh + 'h ' + mm + 'm' : hh + ':' + mm + ':' + ss;
+        // Only show urgency when < 24h remaining (don't alarm client prematurely)
+        if (h < 24) {
+          if (wrap) wrap.classList.remove('hidden');
+          if (display) display.textContent = hh + ':' + mm + ':' + ss;
+        } else {
+          if (wrap) wrap.classList.add('hidden');
+        }
       }
       update();
       countdownTimer = setInterval(update, 1000);
