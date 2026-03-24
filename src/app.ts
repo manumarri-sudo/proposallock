@@ -21,6 +21,7 @@ import {
   createTemplate,
   getTemplatesByEmail,
   deleteTemplate,
+  getViewCountsForProposals,
 } from "./db";
 import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy";
 import { notifyFreelancerPaid, notifyFreelancerViewed, notifyClientReminder, sendTestimonialRequestEmail, notifyClientProposal } from "./notify";
@@ -779,6 +780,8 @@ app.get("/dashboard", async (c) => {
     getTemplatesByEmail(user.email),
   ]);
 
+  const viewCounts = await getViewCountsForProposals(proposals.map((p) => p.id));
+
   // 48h testimonial check: fire-and-forget, never delays dashboard load
   getProposalsPendingTestimonialEmail(user.email).then(async (pending) => {
     for (const p of pending) {
@@ -796,7 +799,7 @@ app.get("/dashboard", async (c) => {
     }
   }).catch((e) => console.error("[testimonial] 48h check error:", e));
 
-  return c.html(dashboardPage(user.email, proposals, templates));
+  return c.html(dashboardPage(user.email, proposals, templates, viewCounts));
 });
 
 // Landing page
@@ -961,7 +964,8 @@ function dashboardPage(
     default_price_cents: number;
     file_url: string;
     file_type: string;
-  }> = []
+  }> = [],
+  viewCounts: Record<string, number> = {}
 ): string {
   const rows = proposals
     .map((p) => {
@@ -974,9 +978,15 @@ function dashboardPage(
         day: "numeric",
         year: "numeric",
       });
-      const status = p.paid
-        ? '<span class="inline-flex items-center gap-1 text-green-700 bg-green-50 px-2 py-0.5 rounded-full text-xs font-medium"><i data-lucide="check-circle-2" class="w-3 h-3"></i> Paid</span>'
-        : '<span class="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full text-xs font-medium"><i data-lucide="clock" class="w-3 h-3"></i> Pending</span>';
+      const views = viewCounts[p.id] || 0;
+      let status: string;
+      if (p.paid) {
+        status = '<span class="inline-flex items-center gap-1 text-green-700 bg-green-50 px-2 py-0.5 rounded-full text-xs font-medium"><i data-lucide="check-circle-2" class="w-3 h-3"></i> Paid</span>';
+      } else if (views === 0) {
+        status = '<span class="inline-flex items-center gap-1 text-warm-500 bg-warm-100 px-2 py-0.5 rounded-full text-xs font-medium"><i data-lucide="eye-off" class="w-3 h-3"></i> Not opened</span>';
+      } else {
+        status = `<span class="inline-flex items-center gap-1 text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full text-xs font-medium"><i data-lucide="eye" class="w-3 h-3"></i> Opened${views > 1 ? ` ${views}x` : ''}</span>`;
+      }
       const baseUrl =
         process.env.BASE_URL || "https://proposallock.vercel.app";
       return `

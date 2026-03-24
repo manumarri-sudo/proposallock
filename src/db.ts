@@ -244,3 +244,23 @@ export async function deleteTemplate(id: string, email: string): Promise<void> {
 
   if (error) throw new Error(`Failed to delete template: ${error.message}`);
 }
+
+export async function getViewCountsForProposals(
+  proposalIds: string[]
+): Promise<Record<string, number>> {
+  if (proposalIds.length === 0) return {};
+  const paths = proposalIds.map((id) => `/p/${id}`);
+  const { data, error } = await supabase
+    .from("page_views")
+    .select("path")
+    .in("path", paths);
+
+  if (error || !data) return {};
+
+  const counts: Record<string, number> = {};
+  for (const row of data) {
+    const id = (row.path as string).replace("/p/", "");
+    counts[id] = (counts[id] || 0) + 1;
+  }
+  return counts;
+}
