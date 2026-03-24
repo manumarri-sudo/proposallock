@@ -1566,7 +1566,7 @@ function landingPage(loggedIn = false): string {
         const el = document.getElementById('social-proof');
         if (!el) return;
         if (paid && paid >= 1) {
-          el.textContent = paid + ' client' + (paid !== 1 ? 's' : '') + ' have paid and downloaded files via ProposalLock.';
+          el.textContent = paid + ' client' + (paid !== 1 ? 's have' : ' has') + ' paid and downloaded files via ProposalLock.';
           el.classList.remove('hidden');
         } else if (proposals && proposals >= 3) {
           el.textContent = proposals + ' proposals created so far.';
@@ -1690,6 +1690,10 @@ function landingPage(loggedIn = false): string {
         }
 
         proposalUrlInput.value = json.proposal_url;
+        // Auto-copy URL to clipboard (reduces 1-click friction)
+        if (navigator.clipboard && json.proposal_url) {
+          navigator.clipboard.writeText(json.proposal_url).catch(() => {});
+        }
         // Show client-notified badge if email was auto-sent
         const clientNotified = document.getElementById('clientNotified');
         const clientEmailInput = document.getElementById('proposal-client-email');
@@ -2063,6 +2067,13 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
             if (ps) {
               ps.innerHTML = '<i data-lucide="loader-2" class="w-3 h-3 animate-spin" aria-hidden="true"></i> Checking for payment... this page updates automatically.';
               lucide.createIcons();
+              // Reset status message after 90s if no payment detected
+              setTimeout(() => {
+                if (ps && ps.textContent.includes('Checking')) {
+                  ps.innerHTML = '<i data-lucide="info" class="w-3 h-3" aria-hidden="true"></i> Files unlock automatically on this page after payment.';
+                  lucide.createIcons();
+                }
+              }, 90000);
             }
           }, { once: true });
         } else {
@@ -2098,7 +2109,7 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
           clearInterval(countdownTimer);
           if (wrap) wrap.classList.add('hidden');
           if (expired) expired.classList.remove('hidden');
-          if (btn) { btn.classList.add('opacity-50', 'pointer-events-none'); btn.textContent = 'Proposal Expired'; }
+          // Keep checkout button active -- soft expiry is for urgency, not a hard gate
           return;
         }
         const h = Math.floor(remaining / 3600000);
