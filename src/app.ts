@@ -1391,6 +1391,10 @@ function landingPage(loggedIn = false): string {
           <i data-lucide="mail" class="w-3.5 h-3.5" aria-hidden="true"></i>
           Copy email to client
         </button>
+        <a id="mailtoBtn" href="#" class="mt-2 w-full bg-white border border-warm-200 hover:border-accent-300 hover:text-accent-600 text-warm-600 text-sm px-4 py-2.5 rounded-lg transition font-medium flex items-center justify-center gap-1.5">
+          <i data-lucide="send" class="w-3.5 h-3.5" aria-hidden="true"></i>
+          Open in email app
+        </a>
         <p id="emailCopied" class="hidden text-xs text-green-600 text-center mt-1.5">Email template copied to clipboard!</p>
         <a id="previewLink" href="#" target="_blank" class="mt-2 w-full bg-warm-50 border border-warm-200 hover:border-accent-300 hover:text-accent-600 text-warm-500 text-sm px-4 py-2.5 rounded-lg transition font-medium flex items-center justify-center gap-1.5">
           <i data-lucide="eye" class="w-3.5 h-3.5" aria-hidden="true"></i>
@@ -1684,6 +1688,24 @@ function landingPage(loggedIn = false): string {
           clientNotified.classList.remove('hidden');
           lucide.createIcons();
         }
+        // Wire mailto: link
+        const mailtoBtn = document.getElementById('mailtoBtn');
+        if (mailtoBtn) {
+          const clientEmailVal = document.getElementById('proposal-client-email').value || '';
+          const emailSubject = encodeURIComponent('Your files are ready: ' + (data.title || 'your project'));
+          const emailBodyLines = [
+            'Hi ' + (data.client_name || ''),
+            '',
+            'Your deliverables are complete. Click the link below to review and unlock your files:',
+            '',
+            json.proposal_url,
+            '',
+            'Pay once to unlock. Files are available immediately after payment. No account needed.',
+            '',
+            'Let me know if you have any questions before you pay.',
+          ];
+          mailtoBtn.href = 'mailto:' + encodeURIComponent(clientEmailVal) + '?subject=' + emailSubject + '&body=' + encodeURIComponent(emailBodyLines.join('\\n'));
+        }
         // Wire preview link
         const previewLink = document.getElementById('previewLink');
         if (previewLink) previewLink.href = json.proposal_url;
@@ -1896,7 +1918,7 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
           <a id="checkoutBtn" href="#" target="_blank"
             class="flex items-center justify-center gap-2 w-full accent-gradient hover:opacity-90 text-white font-semibold py-3.5 rounded-xl transition text-center shadow-lg shadow-accent-500/20">
             <i data-lucide="credit-card" class="w-4 h-4" aria-hidden="true"></i>
-            Pay to Unlock Files
+            <span id="checkoutBtnText">Pay to Unlock Files</span>
           </a>
           <p class="text-xs text-warm-500 mt-4 flex items-center justify-center gap-1">
             <i data-lucide="shield-check" class="w-3 h-3" aria-hidden="true"></i>
@@ -2020,6 +2042,8 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
       } else {
         document.getElementById('lockedState').classList.remove('hidden');
         document.getElementById('price').textContent = price;
+        const btnText = document.getElementById('checkoutBtnText');
+        if (btnText) btnText.textContent = 'Pay ' + price + ' to Unlock Files';
         const checkoutBtn = document.getElementById('checkoutBtn');
         if (data.ls_checkout_url) {
           checkoutBtn.href = data.ls_checkout_url;
