@@ -23,7 +23,7 @@ import {
   deleteTemplate,
 } from "./db";
 import { createCheckoutLink, verifyWebhookSignature } from "./lemonsqueezy";
-import { notifyFreelancerPaid, notifyFreelancerViewed, notifyClientReminder, sendTestimonialRequestEmail } from "./notify";
+import { notifyFreelancerPaid, notifyFreelancerViewed, notifyClientReminder, notifyClientProposal, sendTestimonialRequestEmail } from "./notify";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
@@ -361,10 +361,23 @@ app.post("/api/proposals", async (c) => {
     description: typeof description === "string" ? description.trim() : null,
   });
 
+  // Auto-notify client if email was provided (fire-and-forget)
+  if (clientEmail && checkout?.checkoutUrl) {
+    notifyClientProposal({
+      clientEmail,
+      clientName: client_name,
+      title,
+      proposalId: id,
+      priceCents,
+      proposalUrl: `${baseUrl}/p/${id}`,
+    }).catch((e) => console.error("[notify] client proposal email error:", e));
+  }
+
   return c.json({
     id: proposal.id,
     proposal_url: `${baseUrl}/p/${id}`,
     checkout_url: proposal.ls_checkout_url,
+    client_email_sent: !!(clientEmail && checkout?.checkoutUrl),
   });
 });
 
@@ -1352,6 +1365,9 @@ function landingPage(loggedIn = false): string {
           <i data-lucide="check-circle-2" class="w-5 h-5 text-green-600"></i>
           <p class="text-green-700 font-semibold">Proposal created!</p>
         </div>
+        <p id="clientNotified" class="hidden text-xs text-green-600 flex items-center gap-1 mb-2">
+          <i data-lucide="mail-check" class="w-3 h-3" aria-hidden="true"></i>
+        </p>
         <p class="text-sm text-warm-500 mb-3">Share this link with your client:</p>
         <div class="flex gap-2">
           <input id="proposalUrl" readonly
@@ -1653,6 +1669,13 @@ function landingPage(loggedIn = false): string {
         }
 
         proposalUrlInput.value = json.proposal_url;
+        // Show client-notified badge if email was auto-sent
+        const clientNotified = document.getElementById('clientNotified');
+        const clientEmailInput = document.getElementById('proposal-client-email');
+        if (clientNotified && json.client_email_sent && clientEmailInput && clientEmailInput.value) {
+          clientNotified.textContent = 'Email sent to ' + clientEmailInput.value;
+          clientNotified.classList.remove('hidden');
+        }
         // Wire preview link
         const previewLink = document.getElementById('previewLink');
         if (previewLink) previewLink.href = json.proposal_url;

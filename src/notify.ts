@@ -198,6 +198,74 @@ export async function sendTestimonialRequestEmail(params: {
   }
 }
 
+export async function notifyClientProposal(params: {
+  clientEmail: string;
+  clientName: string;
+  title: string;
+  proposalId: string;
+  priceCents: number;
+  proposalUrl: string;
+}): Promise<void> {
+  if (!RESEND_API_KEY) return;
+
+  const priceFormatted = (params.priceCents / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+  });
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: [params.clientEmail],
+        subject: `Your proposal is ready: ${escapeHtml(params.title)}`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <div style="display: inline-block; background: linear-gradient(135deg, #4f46e5, #6366f1); border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+                <span style="color: white; font-size: 16px; font-weight: bold;">PL</span>
+              </div>
+            </div>
+            <h2 style="color: #1a1714; font-size: 20px; margin-bottom: 8px;">Your proposal is ready</h2>
+            <p style="color: #6b5a44; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+              Hi ${escapeHtml(params.clientName)}, your proposal for <strong>${escapeHtml(params.title)}</strong> is ready to review.
+            </p>
+            <div style="background: #fdfcfb; border: 1px solid #f3ece3; border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center;">
+              <p style="color: #6b5a44; font-size: 13px; margin: 0 0 8px;">Amount due</p>
+              <p style="color: #1a1714; font-size: 28px; font-weight: 700; margin: 0;">${priceFormatted}</p>
+            </div>
+            <p style="color: #6b5a44; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+              Files unlock automatically the moment payment clears. No account needed.
+            </p>
+            <a href="${params.proposalUrl}" style="display: block; text-align: center; background: linear-gradient(135deg, #4f46e5, #6366f1); color: white; font-weight: 600; padding: 14px 24px; border-radius: 12px; text-decoration: none; margin-top: 24px; font-size: 15px;">
+              Review and Pay ${priceFormatted}
+            </a>
+            <p style="color: #a89272; font-size: 12px; text-align: center; margin-top: 16px;">
+              Secure payment via LemonSqueezy. No account required.
+            </p>
+            <p style="color: #a89272; font-size: 12px; text-align: center; margin-top: 24px;">
+              &copy; 2026 ProposalLock
+            </p>
+          </div>
+        `,
+      }),
+    });
+    if (res.ok) {
+      console.log(`[notify] Proposal email sent to ${params.clientEmail}`);
+    } else {
+      const err = await res.text();
+      console.error("[notify] Client proposal email failed:", err);
+    }
+  } catch (e) {
+    console.error("[notify] Client proposal email error:", e);
+  }
+}
+
 export async function notifyFreelancerViewed(params: {
   freelancerEmail: string;
   title: string;
