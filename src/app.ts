@@ -1985,6 +1985,10 @@ function proposalPage(id: string, meta?: { title: string; price_cents: number })
         const checkoutBtn = document.getElementById('checkoutBtn');
         if (data.ls_checkout_url) {
           checkoutBtn.href = data.ls_checkout_url;
+          checkoutBtn.addEventListener('click', () => {
+            const ps = document.getElementById('pollingStatus');
+            if (ps) ps.classList.remove('hidden');
+          }, { once: true });
         } else {
           checkoutBtn.textContent = 'Payment not configured';
           checkoutBtn.classList.add('opacity-50', 'pointer-events-none');
