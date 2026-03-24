@@ -1334,7 +1334,7 @@ function landingPage(loggedIn = false): string {
         </div>
         <label class="flex items-center gap-2.5 cursor-pointer select-none">
           <input type="checkbox" id="saveAsTemplate" name="save_as_template" class="w-4 h-4 rounded border-warm-300 accent-accent-500 cursor-pointer" />
-          <span class="text-sm text-warm-600">Save as template for future proposals</span>
+          <span class="text-sm text-warm-600">Save as template <span class="text-warm-400 font-normal">(log in to enable)</span></span>
         </label>
         <button type="submit" id="submitBtn"
           class="w-full accent-gradient hover:opacity-90 disabled:opacity-50 text-white font-semibold px-6 py-3.5 rounded-xl transition shadow-lg shadow-accent-500/20 flex items-center justify-center gap-2">
@@ -2082,25 +2082,38 @@ function successPage(id: string): string {
   <script>
     lucide.createIcons();
 
+    let _pollTimer = null;
+    let _pollAttempts = 0;
+    const MAX_POLLS = 10; // 30 seconds max
+
     async function loadFiles() {
       try {
         const res = await fetch('/api/proposals/${id}');
         const data = await res.json();
-        document.getElementById('loading').classList.add('hidden');
 
         if (data.paid && data.file_url) {
+          if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+          document.getElementById('loading').classList.add('hidden');
           document.getElementById('fileLink').href = data.file_url;
           document.getElementById('fileSection').classList.remove('hidden');
           lucide.createIcons();
         } else {
-          document.getElementById('error').classList.remove('hidden');
+          _pollAttempts++;
+          if (_pollAttempts >= MAX_POLLS) {
+            if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error').classList.remove('hidden');
+          }
+          // else: keep polling -- webhook may not have fired yet
         }
       } catch (e) {
+        if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('error').classList.remove('hidden');
       }
     }
     loadFiles();
+    _pollTimer = setInterval(loadFiles, 3000);
   </script>
 </body>
 </html>`;
